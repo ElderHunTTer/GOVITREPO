@@ -16,14 +16,9 @@ export async function createPublicReportAction(formData: FormData) {
   const reporterEmail = String(formData.get("reporterEmail") ?? "").trim();
   const reporterNotes = String(formData.get("reporterNotes") ?? "").trim();
   const notABot = String(formData.get("notABot") ?? "").trim();
-  const website = String(formData.get("website") ?? "").trim();
 
   if (!(labelImage instanceof File) || labelImage.size === 0) {
     redirect("/report?error=Attach%20a%20label%20image%20to%20continue.");
-  }
-
-  if (website) {
-    redirect("/report?error=We%20could%20not%20verify%20this%20submission.");
   }
 
   if (notABot !== "on") {

@@ -22,3 +22,6 @@ This will be my casual thoughts process - Non Professional Persay....
 
     Im running a Security pass, Making sure we got no exposed Keys or vulnerabilities the AI might have missed.
 
+    im trying to keep it cost efficient so im using free everything which means wiull nee d aworkaround using a GATCHA system
+    Just a simple checkmark should do the trick.
+

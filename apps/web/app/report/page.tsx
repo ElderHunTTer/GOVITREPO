@@ -56,14 +56,6 @@ export default async function ReportPage({
               />
             </label>
 
-            <input
-              autoComplete="off"
-              className="honeypot-input"
-              name="website"
-              tabIndex={-1}
-              type="text"
-            />
-
             <label className="checkbox-group input-group-full">
               <input name="notABot" required type="checkbox" />
               <span>I confirm this submission is being made by a real person.</span>
