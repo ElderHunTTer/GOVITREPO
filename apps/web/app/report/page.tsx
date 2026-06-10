@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createPublicReportAction } from "./actions";
+import { ProcessingSubmit } from "./processing-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -75,9 +76,7 @@ export default async function ReportPage({
           </div>
 
           <div className="actions-row">
-            <button className="primary-button" type="submit">
-              Check label
-            </button>
+            <ProcessingSubmit />
             <p className="helper-text">
               After upload, the system runs local OCR, extracts visible fields,
               and either auto-rejects non-labels or creates a pending reviewer
