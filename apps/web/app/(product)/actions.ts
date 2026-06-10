@@ -5,14 +5,37 @@ import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
 import {
+  mapDemoLabel,
   getReviewerContext,
   summarizeStatuses
 } from "@/lib/product";
+import { runAutomatedPublicIntake } from "@/lib/public-intake";
 import { createClient } from "@/lib/supabase/server";
-import type { VerificationFieldResult } from "@govit/types";
+import type {
+  ExtractedSubmissionFields,
+  VerificationFieldResult
+} from "@govit/types";
 
 function safeFileName(fileName: string) {
   return fileName.toLowerCase().replace(/[^a-z0-9.-]+/g, "-");
+}
+
+function readOptionalField(formData: FormData, key: string) {
+  return String(formData.get(key) ?? "").trim();
+}
+
+function mergeSubmittedFields(args: {
+  extractedFields: ExtractedSubmissionFields;
+  manualFields: ExtractedSubmissionFields;
+}) {
+  return Object.fromEntries(
+    Object.entries({
+      ...args.extractedFields,
+      ...Object.fromEntries(
+        Object.entries(args.manualFields).filter(([, value]) => value?.trim())
+      )
+    }).filter(([, value]) => value?.trim())
+  ) as ExtractedSubmissionFields;
 }
 
 export async function signOutAction() {
@@ -93,12 +116,15 @@ export async function createUploadReviewAction(formData: FormData) {
   }
 
   const labelImage = formData.get("labelImage");
-  const brandName = String(formData.get("brandName") ?? "").trim();
-  const classType = String(formData.get("classType") ?? "").trim();
-  const netContents = String(formData.get("netContents") ?? "").trim();
-  const alcoholByVolume = String(formData.get("alcoholByVolume") ?? "").trim();
-  const governmentWarning = String(formData.get("governmentWarning") ?? "").trim();
-  const reviewerNotes = String(formData.get("reviewerNotes") ?? "").trim();
+  const manualFields: ExtractedSubmissionFields = {
+    brandName: readOptionalField(formData, "brandName"),
+    classType: readOptionalField(formData, "classType"),
+    netContents: readOptionalField(formData, "netContents"),
+    alcoholByVolume: readOptionalField(formData, "alcoholByVolume"),
+    governmentWarning: readOptionalField(formData, "governmentWarning"),
+    producer: readOptionalField(formData, "producer")
+  };
+  const reviewerNotes = readOptionalField(formData, "reviewerNotes");
 
   if (!(labelImage instanceof File) || labelImage.size === 0) {
     redirect("/reviews/new?error=Attach%20a%20label%20image%20to%20continue.");
@@ -106,40 +132,86 @@ export async function createUploadReviewAction(formData: FormData) {
 
   const filePath = `uploads/${context.profile.id}/${Date.now()}-${safeFileName(labelImage.name)}`;
   const admin = createAdminClient();
+  const fileBuffer = Buffer.from(await labelImage.arrayBuffer());
 
   await admin.storage.from(env.supabaseStorageBucketLabels).upload(
     filePath,
-    Buffer.from(await labelImage.arrayBuffer()),
+    fileBuffer,
     {
       contentType: labelImage.type || "application/octet-stream",
       upsert: false
     }
   );
 
-  const submittedFields = {
-    brandName,
-    classType,
-    netContents,
-    alcoholByVolume,
-    governmentWarning
-  };
+  const { data: labels } = await admin
+    .from("demo_labels")
+    .select("*")
+    .order("title", { ascending: true });
 
-  const labelTitle = brandName || classType || labelImage.name;
+  const automatedResult = await runAutomatedPublicIntake({
+    buffer: fileBuffer,
+    mimeType: labelImage.type || "image/png",
+    fileName: labelImage.name,
+    caseReference: `INTERNAL-${context.profile.id.slice(0, 8)}`,
+    labels: (labels ?? []).map(mapDemoLabel)
+  });
+
+  const submittedFields = mergeSubmittedFields({
+    extractedFields: automatedResult.extractedFields,
+    manualFields
+  });
+
+  const hasManualOverrides = Object.values(manualFields).some((value) => value?.trim());
+  const labelTitle =
+    submittedFields.brandName ||
+    automatedResult.labelTitle ||
+    submittedFields.classType ||
+    labelImage.name;
+  const combinedReviewerNotes = [
+    reviewerNotes || null,
+    hasManualOverrides
+      ? "Manual intake overrides were provided for this uploaded review."
+      : null
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   const { data: job } = await admin
     .from("label_review_jobs")
     .insert({
       status: "pending",
+      summary_status: automatedResult.summaryStatus,
       source_kind: "upload",
       submitted_by: context.profile.id,
       source_image_path: filePath,
       label_title: labelTitle,
       submitted_fields: submittedFields,
       reviewer_notes:
-        reviewerNotes || "Awaiting OCR extraction and automated verification."
+        combinedReviewerNotes ||
+        "Submitted from the internal intake flow and pre-processed automatically.",
+      ocr_provider: automatedResult.provider,
+      automated_classification: automatedResult.classification,
+      automated_confidence: automatedResult.reviewConfidence,
+      automated_summary: automatedResult.aiSummary,
+      automated_model: automatedResult.model,
+      demo_label_id: automatedResult.matchedDemoLabelId
     })
     .select("id")
     .single();
+
+  if (job?.id && automatedResult.fieldResults.length > 0) {
+    await admin.from("label_review_field_results").insert(
+      automatedResult.fieldResults.map((result) => ({
+        job_id: job.id,
+        field_name: result.fieldName,
+        status: result.status,
+        expected_value: result.expectedValue,
+        detected_value: result.detectedValue,
+        confidence: result.confidence,
+        reason: result.reason
+      }))
+    );
+  }
 
   revalidatePath("/dashboard");
   redirect(`/reviews/${job?.id ?? ""}`);
