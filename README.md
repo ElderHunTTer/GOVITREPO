@@ -54,5 +54,6 @@ docs/
 
 - Product framing: [docs/PRODUCT_CONTEXT.md]
 - System design: [docs/ARCHITECTURE.md]
+- Supabase wiring: [docs/SUPABASE_SETUP.md]
 - Working norms: [COLLABORATION.md]
 - AI contributor context: [AGENTS.md]

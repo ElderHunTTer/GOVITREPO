@@ -42,13 +42,30 @@ export default function HomePage() {
   return (
     <main className="page-shell">
       <section className="hero">
-        <p className="eyebrow">Vercel-ready showcase</p>
-        <h1>Label review built for speed, clarity, and trust.</h1>
+        <div className="hero-band">
+          <p className="eyebrow">Modern review operations</p>
+          <span className="hero-chip">Supabase and Vercel connected</span>
+        </div>
+        <h1>American-made label review built for speed, clarity, and trust.</h1>
         <p className="hero-copy">
-          This starter app demonstrates the planned reviewer workflow: field-level
-          outcomes, deterministic rules, and evidence-oriented decisions that can
-          evolve toward OCR-backed verification.
+          This showcase frames the reviewer workflow as a modern verification
+          console: deterministic checks, visible evidence, and a path from demo
+          polish to production-grade intake.
         </p>
+        <div className="hero-metrics">
+          <article>
+            <span>Verification mode</span>
+            <strong>Single-label review</strong>
+          </article>
+          <article>
+            <span>Backed by</span>
+            <strong>Supabase + Vercel</strong>
+          </article>
+          <article>
+            <span>Decision model</span>
+            <strong>Pass / Review / Fail</strong>
+          </article>
+        </div>
       </section>
 
       <section className="panel">
@@ -56,6 +73,10 @@ export default function HomePage() {
           <div>
             <p className="eyebrow">Mock verification result</p>
             <h2>Single-label review</h2>
+            <p className="panel-copy">
+              Reviewers can see the exact field outcome, the detected value, and
+              why a record should pass, pause for review, or fail.
+            </p>
           </div>
           <span className={`status-pill status-${mockResult.status}`}>
             {summary.label}
@@ -85,7 +106,10 @@ export default function HomePage() {
           {mockResult.fields.map((field) => (
             <article key={field.fieldName} className="result-card">
               <div className="result-head">
-                <h3>{field.fieldName}</h3>
+                <div>
+                  <span className="field-label">Field</span>
+                  <h3>{field.fieldName}</h3>
+                </div>
                 <span className={`status-pill status-${field.status}`}>
                   {field.status}
                 </span>
@@ -112,4 +136,3 @@ export default function HomePage() {
     </main>
   );
 }
-

@@ -12,6 +12,8 @@
   "dependencies": {
     "@govit/core": "0.1.0",
     "@govit/types": "0.1.0",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.49.8",
     "next": "^15.3.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
