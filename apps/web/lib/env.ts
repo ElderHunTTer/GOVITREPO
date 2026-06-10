@@ -31,6 +31,9 @@ export const env = {
   get geminiVisionModel() {
     return process.env.GEMINI_VISION_MODEL ?? "gemini-3.5-flash";
   },
+  get intakeDebugEnabled() {
+    return process.env.INTAKE_DEBUG === "1" || process.env.INTAKE_DEBUG === "true";
+  },
   get paddleOcrPythonPath() {
     return process.env.PADDLEOCR_PYTHON_PATH ?? (process.platform === "win32" ? "py" : "python3");
   },

@@ -30,6 +30,15 @@ export async function createPublicReportAction(formData: FormData) {
   const filePath = `public-intake/${caseReference}/${Date.now()}-${safeFileName(labelImage.name)}`;
   const fileBuffer = Buffer.from(await labelImage.arrayBuffer());
 
+  console.info("[report] Starting public report intake.", {
+    caseReference,
+    fileName: labelImage.name,
+    mimeType: labelImage.type || "application/octet-stream",
+    sizeBytes: labelImage.size,
+    hasReporterEmail: Boolean(reporterEmail),
+    hasReporterNotes: Boolean(reporterNotes)
+  });
+
   await admin.storage.from(env.supabaseStorageBucketLabels).upload(filePath, fileBuffer, {
     contentType: labelImage.type || "application/octet-stream",
     upsert: false
@@ -60,6 +69,17 @@ export async function createPublicReportAction(formData: FormData) {
   const shouldAutoReject =
     automatedResult.classification === "not_ttb_label" &&
     automatedResult.classificationConfidence >= 0.8;
+
+  console.info("[report] Automated intake finished.", {
+    caseReference,
+    provider: automatedResult.provider,
+    model: automatedResult.model,
+    classification: automatedResult.classification,
+    classificationConfidence: automatedResult.classificationConfidence,
+    reviewConfidence: automatedResult.reviewConfidence,
+    extractedFieldKeys: Object.keys(automatedResult.extractedFields),
+    shouldAutoReject
+  });
 
   let internalJobId: string | null = null;
 
@@ -127,6 +147,12 @@ export async function createPublicReportAction(formData: FormData) {
       ai_processed_at: new Date().toISOString()
     })
     .eq("case_reference", caseReference);
+
+  console.info("[report] Public report case saved.", {
+    caseReference,
+    status: shouldAutoReject ? "auto_rejected" : "pending_review",
+    internalJobId
+  });
 
   revalidatePath("/dashboard");
   revalidatePath("/case-status");

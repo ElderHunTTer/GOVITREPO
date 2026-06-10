@@ -59,6 +59,26 @@ type PythonLaunch = {
   label: string;
 };
 
+function intakeLog(level: "info" | "warn" | "error", message: string, meta?: Record<string, unknown>) {
+  if (!env.intakeDebugEnabled && level === "info") {
+    return;
+  }
+
+  const prefix = `[intake:${level}] ${message}`;
+
+  if (level === "error") {
+    console.error(prefix, meta ?? {});
+    return;
+  }
+
+  if (level === "warn") {
+    console.warn(prefix, meta ?? {});
+    return;
+  }
+
+  console.info(prefix, meta ?? {});
+}
+
 export type AutomatedPublicIntakeResult = VisionAnalysis & {
   candidateLabelIds: string[];
   matchedDemoLabelId: string | null;
@@ -365,8 +385,20 @@ async function analyzeWithGemini(args: {
   fileName: string;
 }): Promise<VisionAnalysis> {
   if (!env.geminiApiKey) {
+    intakeLog("warn", "Gemini analysis skipped because API key is missing.", {
+      hasGeminiApiKey: false,
+      model: env.geminiVisionModel
+    });
     throw new Error("Gemini API key is not configured.");
   }
+
+  intakeLog("info", "Starting Gemini image analysis.", {
+    fileName: args.fileName,
+    mimeType: args.mimeType,
+    sizeBytes: args.buffer.byteLength,
+    model: env.geminiVisionModel,
+    hasGeminiApiKey: true
+  });
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiVisionModel}:generateContent?key=${env.geminiApiKey}`,
@@ -444,6 +476,12 @@ async function analyzeWithGemini(args: {
   );
 
   if (!response.ok) {
+    const errorText = await response.text();
+    intakeLog("error", "Gemini API returned a non-OK response.", {
+      status: response.status,
+      statusText: response.statusText,
+      bodySnippet: errorText.slice(0, 800)
+    });
     throw new Error(`Gemini API failed with status ${response.status}`);
   }
 
@@ -456,6 +494,10 @@ async function analyzeWithGemini(args: {
   };
 
   const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
+  intakeLog("info", "Gemini response received.", {
+    candidateCount: payload.candidates?.length ?? 0,
+    responseTextSnippet: text.slice(0, 400)
+  });
   const parsed = JSON.parse(stripCodeFence(text)) as {
     classification?: AutomatedLabelClassification;
     classificationConfidence?: number;
@@ -465,6 +507,12 @@ async function analyzeWithGemini(args: {
     extractedFields?: Partial<Record<KnownFieldName, unknown>>;
     extractionConfidences?: Partial<Record<KnownFieldName, unknown>>;
   };
+
+  intakeLog("info", "Gemini response parsed into intake fields.", {
+    classification: parsed.classification,
+    extractedFieldKeys: Object.keys(parsed.extractedFields ?? {}),
+    confidenceKeys: Object.keys(parsed.extractionConfidences ?? {})
+  });
 
   return {
     provider: "gemini",
@@ -489,14 +537,31 @@ async function runPaddleOcr(imagePath: string): Promise<OcrPayload> {
   const launchers = buildPythonLaunches(bridgePath, imagePath);
   let lastError: Error | null = null;
 
+  intakeLog("info", "Starting PaddleOCR fallback.", {
+    imagePath,
+    bridgePath,
+    launcherCount: launchers.length,
+    configuredPythonPath: env.paddleOcrPythonPath
+  });
+
   for (const launcher of launchers) {
     try {
+      intakeLog("info", "Trying PaddleOCR launcher.", {
+        launcher: launcher.label,
+        command: launcher.command,
+        args: launcher.args
+      });
       return await spawnBridge(launcher);
     } catch (error) {
       lastError =
         error instanceof Error
           ? new Error(`${launcher.label}: ${error.message}`)
           : new Error(`${launcher.label}: Unknown OCR launch error`);
+
+      intakeLog("warn", "PaddleOCR launcher failed.", {
+        launcher: launcher.label,
+        error: lastError.message
+      });
 
       if (
         !(error instanceof Error) ||
@@ -562,18 +627,35 @@ function spawnBridge(launcher: PythonLaunch): Promise<OcrPayload> {
     });
 
     child.on("error", (error) => {
+      intakeLog("warn", "PaddleOCR process spawn error.", {
+        launcher: launcher.label,
+        message: error.message
+      });
       reject(new Error(error.message));
     });
 
     child.on("close", (code) => {
       if (code !== 0) {
+        intakeLog("warn", "PaddleOCR process exited with non-zero code.", {
+          launcher: launcher.label,
+          code,
+          stderrSnippet: stderr.slice(0, 800)
+        });
         reject(new Error(stderr || `PaddleOCR bridge failed with code ${code}`));
         return;
       }
 
       try {
+        intakeLog("info", "PaddleOCR process completed.", {
+          launcher: launcher.label,
+          stdoutSnippet: stdout.slice(0, 300)
+        });
         resolve(JSON.parse(stdout) as OcrPayload);
       } catch (error) {
+        intakeLog("error", "PaddleOCR output could not be parsed.", {
+          launcher: launcher.label,
+          stdoutSnippet: stdout.slice(0, 800)
+        });
         reject(
           new Error(
             `Could not parse PaddleOCR bridge output: ${
@@ -591,9 +673,22 @@ async function analyzeLabelImage(args: {
   mimeType: string;
   fileName: string;
 }): Promise<VisionAnalysis> {
+  intakeLog("info", "Starting label image analysis.", {
+    fileName: args.fileName,
+    mimeType: args.mimeType,
+    sizeBytes: args.buffer.byteLength,
+    geminiConfigured: Boolean(env.geminiApiKey),
+    geminiModel: env.geminiVisionModel,
+    paddleConfiguredPath: env.paddleOcrPythonPath
+  });
+
   if (env.geminiApiKey) {
     return analyzeWithGemini(args);
   }
+
+  intakeLog("warn", "Gemini not configured, falling back to PaddleOCR.", {
+    fileName: args.fileName
+  });
 
   const tempDir = await fs.mkdtemp(path.join(tmpdir(), "govit-ocr-"));
   const tempPath = path.join(tempDir, `${randomUUID()}${path.extname(args.fileName) || ".png"}`);
@@ -767,7 +862,16 @@ export async function runAutomatedPublicIntake(args: {
 
   try {
     analysis = await analyzeLabelImage(args);
+    intakeLog("info", "Automated intake analysis completed.", {
+      provider: analysis.provider,
+      model: analysis.model,
+      classification: analysis.classification,
+      extractedFieldKeys: Object.keys(analysis.extractedFields)
+    });
   } catch (error) {
+    intakeLog("error", "Automated intake analysis failed; using fallback.", {
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
     analysis = fallbackVisionAnalysis(
       error instanceof Error
         ? `PaddleOCR could not process this image, so the case was routed to human review. ${error.message}`
