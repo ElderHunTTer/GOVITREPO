@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ColaSearchHelper } from "@/app/components/cola-search-helper";
 import { ImagePreview } from "@/app/components/image-preview";
 import { getPublicCaseDetail } from "@/lib/product";
 
@@ -154,6 +155,11 @@ export default async function CaseStatusPage({
                 )}
               </div>
             ) : null}
+
+            <ColaSearchHelper
+              brandName={caseDetail.caseRecord.extractedFields.brandName}
+              labelTitle={caseDetail.matchedLabel?.title ?? null}
+            />
 
             {caseDetail.matchedLabel ? (
               <div className="note-block">

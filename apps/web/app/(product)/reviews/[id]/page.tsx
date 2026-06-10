@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { ColaSearchHelper } from "@/app/components/cola-search-helper";
 import { ImagePreview } from "@/app/components/image-preview";
 import { getJobDetail } from "@/lib/product";
 import { submitReviewerDecisionAction } from "../../actions";
@@ -124,6 +125,10 @@ export default async function ReviewDetailPage({
               <p>{job.reviewerNotes}</p>
             </div>
           ) : null}
+          <ColaSearchHelper
+            brandName={String(job.submittedFields?.brandName ?? "")}
+            labelTitle={job.labelTitle}
+          />
         </section>
       </div>
 
