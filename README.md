@@ -6,7 +6,7 @@ Foundation repository for a Vercel-hosted label verification showcase product in
 
 This repository is intended to become a polished, demo-ready web application that:
 
-- accepts a liquor label image plus structured application data
+- accepts a liquor label image with either public image-only intake or internal reviewer intake
 - verifies required label fields against submitted application values
 - applies exact validation for regulated text such as government warnings
 - applies normalized and explainable matching for softer fields such as brand names
@@ -29,6 +29,7 @@ The product should optimize for:
 - `Postgres` for jobs, audit records, and verification results
 - blob/object storage for uploaded images
 - a deterministic verification engine, with OCR isolated behind a replaceable adapter
+- optional vision AI for public intake classification and field extraction
 
 ## Suggested Initial Repository Layout
 

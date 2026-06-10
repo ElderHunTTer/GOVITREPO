@@ -1,6 +1,11 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getJobDetail } from "@/lib/product";
+import { submitReviewerDecisionAction } from "../../actions";
+
+function formatLabel(value: string) {
+  return value.replace(/_/g, " ");
+}
 
 export default async function ReviewDetailPage({
   params
@@ -65,12 +70,48 @@ export default async function ReviewDetailPage({
           </div>
           <dl className="meta-list">
             {Object.entries(job.submittedFields ?? {}).map(([key, value]) => (
-            <div key={key}>
-              <dt>{key}</dt>
-              <dd>{String(value || "Not provided")}</dd>
-            </div>
-          ))}
+              <div key={key}>
+                <dt>{key}</dt>
+                <dd>{String(value || "Not provided")}</dd>
+              </div>
+            ))}
           </dl>
+          {job.automatedSummary ? (
+            <div className="note-block">
+              <span className="field-label">Automated intake summary</span>
+              <p>{job.automatedSummary}</p>
+            </div>
+          ) : null}
+          <div className="summary-grid">
+            <article>
+              <span>Classification</span>
+              <strong>
+                {job.automatedClassification
+                  ? formatLabel(job.automatedClassification)
+                  : "Not available"}
+              </strong>
+            </article>
+            <article>
+              <span>Review confidence</span>
+              <strong>
+                {job.automatedConfidence != null
+                  ? `${Math.round(job.automatedConfidence * 100)}%`
+                  : "Not available"}
+              </strong>
+            </article>
+            <article>
+              <span>Model</span>
+              <strong>{job.automatedModel ?? "Not available"}</strong>
+            </article>
+            <article>
+              <span>Decision</span>
+              <strong>
+                {job.reviewDecision
+                  ? formatLabel(job.reviewDecision)
+                  : "Pending reviewer action"}
+              </strong>
+            </article>
+          </div>
           {job.reviewerNotes ? (
             <div className="note-block">
               <span className="field-label">Reviewer note</span>
@@ -79,6 +120,37 @@ export default async function ReviewDetailPage({
           ) : null}
         </section>
       </div>
+
+      <section className="card-surface">
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">Reviewer action</p>
+            <h2>Resolve or escalate this case</h2>
+          </div>
+        </div>
+        <form action={submitReviewerDecisionAction} className="form-shell">
+          <input name="jobId" type="hidden" value={job.id} />
+          <label className="input-group input-group-full">
+            <span>Reviewer decision note</span>
+            <textarea
+              name="decisionNote"
+              placeholder="Summarize why you are approving, denying, or requesting a second opinion."
+              rows={4}
+            />
+          </label>
+          <div className="actions-row">
+            <button className="primary-button" name="decision" type="submit" value="accepted">
+              Accept
+            </button>
+            <button className="secondary-button" name="decision" type="submit" value="denied">
+              Deny
+            </button>
+            <button className="secondary-button" name="decision" type="submit" value="second_opinion">
+              Second opinion
+            </button>
+          </div>
+        </form>
+      </section>
 
       <section className="card-surface">
         <div className="section-head">

@@ -21,12 +21,15 @@ Copy [\.env.example](/c:/Users/l7eIV/GOVITREPO/.env.example) into a local `.env.
 - `SUPABASE_SECRET_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_STORAGE_BUCKET_LABELS`
+- `OPENAI_API_KEY`
+- `OPENAI_VISION_MODEL`
 
 Notes:
 
 - Prefer `SUPABASE_SECRET_KEY` for server-only access.
 - `SUPABASE_SERVICE_ROLE_KEY` is included as a fallback for legacy projects.
 - Never expose either server-only key in client-side code.
+- `OPENAI_API_KEY` is optional, but without it the public intake flow will fall back to human review instead of automated extraction.
 
 ## Repository Wiring
 
@@ -42,6 +45,9 @@ This app should only use its own resources:
 
 - `public.label_review_jobs`
 - `public.label_review_field_results`
+- `public.public_report_cases`
+- `public.demo_labels`
+- `public.reviewer_profiles`
 - storage bucket `label-review-images`
 
 No other project tables should be used for this application.
@@ -54,14 +60,15 @@ Add the same environment variables to the Vercel project for:
 - Preview
 - Development
 
-## Next Step
+## Current Public Intake Flow
 
-Once env vars are present, the next implementation step is:
-
-- upload route
-- job creation in `label_review_jobs`
-- storage upload into `label-review-images`
-- result page backed by real Supabase records
+1. Public user uploads a label image.
+2. The image is stored in Supabase Storage.
+3. A `public_report_cases` row is created with a case reference.
+4. Optional vision AI classifies whether the image is a TTB alcohol label.
+5. If confidence is high that it is not a label, the case is auto-rejected.
+6. Otherwise a `label_review_jobs` row is created for reviewer action.
+7. Reviewers can accept, deny, or request a second opinion.
 
 ## Auth For Testing
 

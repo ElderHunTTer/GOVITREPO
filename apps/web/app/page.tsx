@@ -20,13 +20,14 @@ export default async function HomePage() {
         </div>
         <h1>Label review software designed like a real internal product.</h1>
         <p className="hero-copy">
-          A reviewer and admin console for ingesting label images, running seeded
-          demo evaluations, and storing every artifact and decision in Supabase.
+          A reviewer and admin console for ingesting label images, running
+          automated intake checks, and storing every artifact and decision in
+          Supabase.
         </p>
         <div className="hero-metrics">
           <article>
             <span>Primary workflow</span>
-            <strong>Intake, queue, and review</strong>
+            <strong>AI triage, queue, and review</strong>
           </article>
           <article>
             <span>Authentication</span>
@@ -55,9 +56,8 @@ export default async function HomePage() {
           <p className="eyebrow">What the product does</p>
           <h2>Product-shaped workflow</h2>
           <p className="panel-copy">
-            Instead of a single pretty result card, the product now has a reviewer
-            login, dashboard, upload intake, demo library, and individual review
-            pages for stored records.
+            Public users can submit only an image, receive a case reference, and
+            let the system classify and extract fields before reviewers step in.
           </p>
         </article>
         <article className="landing-card">
@@ -81,7 +81,7 @@ export default async function HomePage() {
         <div className="summary-grid">
           <article>
             <span>Public intake</span>
-            <strong>Anonymous upload and matching</strong>
+            <strong>Anonymous upload and automated triage</strong>
           </article>
           <article>
             <span>Accounts</span>

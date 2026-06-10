@@ -3,6 +3,10 @@ import { getPublicCaseDetail } from "@/lib/product";
 
 export const dynamic = "force-dynamic";
 
+function formatLabel(value: string) {
+  return value.replace(/_/g, " ");
+}
+
 export default async function CaseStatusPage({
   searchParams
 }: {
@@ -21,8 +25,8 @@ export default async function CaseStatusPage({
             <p className="eyebrow">Case tracking</p>
             <h1>Look up the status of a public label report.</h1>
             <p className="page-subtitle">
-              Enter the case reference number to see whether the report is waiting
-              for label confirmation, submitted for review, or already resolved.
+              Enter the case reference number to see whether the report is being
+              processed, auto-rejected, queued for review, or already resolved.
             </p>
           </div>
           <div className="page-actions">
@@ -76,50 +80,91 @@ export default async function CaseStatusPage({
 
             <div className="summary-grid">
               <article>
-                <span>Reported label name</span>
-                <strong>{caseDetail.caseRecord.reportedLabelName || "Not provided"}</strong>
+                <span>Classification</span>
+                <strong>
+                  {caseDetail.caseRecord.classification
+                    ? formatLabel(caseDetail.caseRecord.classification)
+                    : "Pending"}
+                </strong>
               </article>
               <article>
-                <span>Reported category</span>
-                <strong>{caseDetail.caseRecord.reportedCategory || "Not provided"}</strong>
+                <span>Classifier confidence</span>
+                <strong>
+                  {caseDetail.caseRecord.classificationConfidence != null
+                    ? `${Math.round(caseDetail.caseRecord.classificationConfidence * 100)}%`
+                    : "Pending"}
+                </strong>
               </article>
               <article>
                 <span>Created</span>
                 <strong>{new Date(caseDetail.caseRecord.createdAt).toLocaleString()}</strong>
               </article>
               <article>
-                <span>Sent to review</span>
+                <span>Reviewer confidence</span>
                 <strong>
-                  {caseDetail.caseRecord.submittedAt
-                    ? new Date(caseDetail.caseRecord.submittedAt).toLocaleString()
-                    : "Not yet"}
+                  {caseDetail.caseRecord.reviewConfidence != null
+                    ? `${Math.round(caseDetail.caseRecord.reviewConfidence * 100)}%`
+                    : "Pending"}
                 </strong>
               </article>
             </div>
 
+            {caseDetail.caseRecord.aiSummary ? (
+              <div className="note-block">
+                <span className="field-label">Automated assessment</span>
+                <p>{caseDetail.caseRecord.aiSummary}</p>
+              </div>
+            ) : null}
+
+            {caseDetail.caseRecord.autoRejectionReason ? (
+              <div className="note-block">
+                <span className="field-label">Auto-rejection reason</span>
+                <p>{caseDetail.caseRecord.autoRejectionReason}</p>
+              </div>
+            ) : null}
+
+            {Object.keys(caseDetail.caseRecord.extractedFields).length > 0 ? (
+              <div className="summary-grid">
+                {Object.entries(caseDetail.caseRecord.extractedFields).map(
+                  ([key, value]) => (
+                    <article key={key}>
+                      <span>{formatLabel(key)}</span>
+                      <strong>{value || "Not detected"}</strong>
+                    </article>
+                  )
+                )}
+              </div>
+            ) : null}
+
             {caseDetail.matchedLabel ? (
               <div className="note-block">
-                <span className="field-label">Confirmed label</span>
+                <span className="field-label">Matched seeded label</span>
                 <p>
                   {caseDetail.matchedLabel.title} · {caseDetail.matchedLabel.category}
                 </p>
               </div>
             ) : (
               <div className="note-block">
-                <span className="field-label">Next step</span>
+                <span className="field-label">Current handling</span>
                 <p>
-                  This case still needs a label confirmation. Continue the process at{" "}
-                  <Link className="text-link" href={`/report/${caseDetail.caseRecord.caseReference}`}>
-                    confirm label
-                  </Link>
-                  .
+                  If no seeded label could be matched automatically, the reviewer
+                  will use the uploaded image and extracted fields to finish the
+                  case manually.
                 </p>
               </div>
             )}
+
+            <div className="note-block">
+              <span className="field-label">Sent to review</span>
+              <p>
+                {caseDetail.caseRecord.submittedAt
+                  ? new Date(caseDetail.caseRecord.submittedAt).toLocaleString()
+                  : "Not sent to the reviewer queue."}
+              </p>
+            </div>
           </section>
         ) : null}
       </section>
     </main>
   );
 }
-

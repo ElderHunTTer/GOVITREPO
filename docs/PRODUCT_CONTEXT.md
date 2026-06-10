@@ -4,7 +4,7 @@
 
 This project is a showcaseable label verification product based on the `treasurytakehome-rgb/instructions` take-home prompt.
 
-The product helps a reviewer compare a submitted label image against application metadata and quickly identify whether key fields appear valid, suspicious, or non-compliant.
+The product helps a reviewer compare a submitted label image against extracted or submitted metadata and quickly identify whether key fields appear valid, suspicious, or non-compliant.
 
 ## Primary User
 
@@ -15,9 +15,17 @@ The primary user is an internal reviewer who needs to:
 - receive a fast, explainable verification result
 - see what triggered a `review` or `fail`
 
+The secondary user is a public submitter who needs to:
+
+- upload a label image without creating an account
+- pass a lightweight bot check
+- receive a case reference number immediately
+- check whether the case was auto-rejected, queued, or resolved
+
 ## Product Goals
 
 - Deliver a demo-friendly reviewer workflow that looks polished on Vercel.
+- Deliver a simple public intake flow that feels like a real product.
 - Keep the core verification logic deterministic and testable.
 - Make every result explainable with field-level evidence.
 - Support single-label verification first, then batch review.

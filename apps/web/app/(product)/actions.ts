@@ -144,3 +144,66 @@ export async function createUploadReviewAction(formData: FormData) {
   revalidatePath("/dashboard");
   redirect(`/reviews/${job?.id ?? ""}`);
 }
+
+export async function submitReviewerDecisionAction(formData: FormData) {
+  const context = await getReviewerContext();
+
+  if (!context) {
+    redirect("/login");
+  }
+
+  const jobId = String(formData.get("jobId") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  const decisionNote = String(formData.get("decisionNote") ?? "").trim();
+
+  if (!jobId) {
+    redirect("/dashboard");
+  }
+
+  if (!["accepted", "denied", "second_opinion"].includes(decision)) {
+    redirect(`/reviews/${jobId}`);
+  }
+
+  const admin = createAdminClient();
+  const { data: job } = await admin
+    .from("label_review_jobs")
+    .select("public_case_reference, reviewer_notes")
+    .eq("id", jobId)
+    .maybeSingle<{ public_case_reference: string | null; reviewer_notes: string | null }>();
+
+  const nextStatus = decision === "second_opinion" ? "processing" : "completed";
+  const nextCaseStatus = decision === "second_opinion" ? "in_review" : "resolved";
+
+  const combinedReviewerNotes = [
+    job?.reviewer_notes?.trim(),
+    decisionNote ? `Reviewer decision note: ${decisionNote}` : null
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  await admin
+    .from("label_review_jobs")
+    .update({
+      status: nextStatus,
+      review_decision: decision,
+      reviewed_by: context.profile.id,
+      reviewed_at: new Date().toISOString(),
+      reviewer_notes: combinedReviewerNotes || null
+    })
+    .eq("id", jobId);
+
+  if (job?.public_case_reference) {
+    await admin
+      .from("public_report_cases")
+      .update({
+        status: nextCaseStatus,
+        resolved_at: decision === "second_opinion" ? null : new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("case_reference", job.public_case_reference);
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/case-status");
+  redirect(`/reviews/${jobId}`);
+}

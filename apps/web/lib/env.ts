@@ -24,6 +24,12 @@ export const env = {
   },
   get supabaseStorageBucketLabels() {
     return process.env.SUPABASE_STORAGE_BUCKET_LABELS ?? "label-review-images";
+  },
+  get openAiApiKey() {
+    return process.env.OPENAI_API_KEY;
+  },
+  get openAiVisionModel() {
+    return process.env.OPENAI_VISION_MODEL ?? "gpt-4.1-mini";
   }
 };
 

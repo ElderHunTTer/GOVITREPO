@@ -1,8 +1,10 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import type {
+  AutomatedLabelClassification,
   DemoLabel,
   PublicCaseStatus,
+  ReviewDecision,
   ReviewSourceKind,
   ReviewerProfile,
   VerificationFieldResult,
@@ -21,6 +23,12 @@ type JobRow = {
   source_image_path: string | null;
   submitted_fields: Record<string, string>;
   reviewer_notes: string | null;
+  automated_classification: AutomatedLabelClassification | null;
+  automated_confidence: number | null;
+  automated_summary: string | null;
+  automated_model: string | null;
+  review_decision: ReviewDecision | null;
+  reviewed_at: string | null;
   created_at: string;
 };
 
@@ -37,12 +45,17 @@ type PublicReportCaseRow = {
   id: string;
   case_reference: string;
   status: PublicCaseStatus;
-  reported_label_name: string;
-  reported_category: string;
   uploaded_image_path: string;
   matched_demo_label_id: string | null;
   candidate_label_ids: string[] | null;
   internal_job_id: string | null;
+  classification_status: AutomatedLabelClassification | null;
+  classification_confidence: number | null;
+  review_confidence: number | null;
+  ai_summary: string | null;
+  auto_rejection_reason: string | null;
+  extracted_fields: Record<string, string>;
+  extraction_confidences: Record<string, number>;
   created_at: string;
   submitted_at: string | null;
 };
@@ -168,7 +181,7 @@ export async function getDashboardData() {
     admin
       .from("label_review_jobs")
       .select("id", { count: "exact", head: true })
-      .eq("summary_status", "review"),
+      .in("status", ["pending", "processing"]),
     admin
       .from("label_review_jobs")
       .select("id", { count: "exact", head: true })
@@ -177,9 +190,7 @@ export async function getDashboardData() {
     admin.from("public_report_cases").select("id", { count: "exact", head: true }),
     admin
       .from("label_review_jobs")
-      .select(
-        "id, status, summary_status, label_title, source_kind, created_at"
-      )
+      .select("id, status, summary_status, label_title, source_kind, created_at")
       .order("created_at", { ascending: false })
       .limit(6)
   ]);
@@ -262,6 +273,12 @@ export async function getJobDetail(jobId: string) {
       sourceImagePath: job.source_image_path,
       submittedFields: job.submitted_fields,
       reviewerNotes: job.reviewer_notes,
+      automatedClassification: job.automated_classification,
+      automatedConfidence: job.automated_confidence,
+      automatedSummary: job.automated_summary,
+      automatedModel: job.automated_model,
+      reviewDecision: job.review_decision,
+      reviewedAt: job.reviewed_at,
       createdAt: job.created_at
     },
     imageUrl: await createSignedImageUrl(job.source_image_path),
@@ -330,12 +347,17 @@ export async function getPublicCase(caseReference: string) {
     id: data.id,
     caseReference: data.case_reference,
     status: data.status,
-    reportedLabelName: data.reported_label_name,
-    reportedCategory: data.reported_category,
     uploadedImagePath: data.uploaded_image_path,
     matchedDemoLabelId: data.matched_demo_label_id,
     candidateLabelIds: data.candidate_label_ids ?? [],
     internalJobId: data.internal_job_id,
+    classification: data.classification_status,
+    classificationConfidence: data.classification_confidence,
+    reviewConfidence: data.review_confidence,
+    aiSummary: data.ai_summary,
+    autoRejectionReason: data.auto_rejection_reason,
+    extractedFields: data.extracted_fields ?? {},
+    extractionConfidences: data.extraction_confidences ?? {},
     createdAt: data.created_at,
     submittedAt: data.submitted_at
   };
@@ -384,7 +406,11 @@ export async function getPublicCaseCandidates(
   const effectiveQuery =
     query && query.trim()
       ? query
-      : [caseRow.reportedLabelName, caseRow.reportedCategory]
+      : [
+          caseRow.extractedFields.brandName,
+          caseRow.extractedFields.classType,
+          caseRow.extractedFields.producer
+        ]
           .filter(Boolean)
           .join(" ");
 

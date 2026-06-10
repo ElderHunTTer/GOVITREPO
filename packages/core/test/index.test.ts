@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { matchesNormalizedText, summarizeVerification } from "../src";
+import {
+  buildExtractedFieldResult,
+  matchesNormalizedText,
+  summarizeVerification
+} from "../src";
 
 describe("matchesNormalizedText", () => {
   it("matches values with whitespace and case differences", () => {
@@ -44,3 +48,26 @@ describe("summarizeVerification", () => {
   });
 });
 
+describe("buildExtractedFieldResult", () => {
+  it("keeps government warning checks strict", () => {
+    const result = buildExtractedFieldResult({
+      fieldName: "governmentWarning",
+      expectedValue: "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects.",
+      detectedValue: "Government warning: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects.",
+      confidence: 0.94
+    });
+
+    expect(result.status).toBe("fail");
+  });
+
+  it("routes unmatched extracted fields to review", () => {
+    const result = buildExtractedFieldResult({
+      fieldName: "brandName",
+      detectedValue: "Blue Harbor",
+      confidence: 0.82,
+      unmatchedReference: true
+    });
+
+    expect(result.status).toBe("review");
+  });
+});

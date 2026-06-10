@@ -21,7 +21,7 @@ export default async function ReportPage({
         </div>
         <h1>Upload a label image and start a public review report.</h1>
         <p className="hero-copy">
-          We will save your image, suggest matching labels, and issue a case
+          We will save your image, run an automated label check, and issue a case
           reference number so you can follow the report through review.
         </p>
         <div className="cta-row">
@@ -48,30 +48,25 @@ export default async function ReportPage({
             </label>
 
             <label className="input-group">
-              <span>Label name, if known</span>
-              <input
-                name="reportedLabelName"
-                placeholder="Blue Harbor"
-                type="text"
-              />
-            </label>
-
-            <label className="input-group">
-              <span>Category, if known</span>
-              <input
-                name="reportedCategory"
-                placeholder="Dry Gin"
-                type="text"
-              />
-            </label>
-
-            <label className="input-group">
               <span>Email for optional follow-up</span>
               <input
                 name="reporterEmail"
                 placeholder="name@example.com"
                 type="email"
               />
+            </label>
+
+            <input
+              autoComplete="off"
+              className="honeypot-input"
+              name="website"
+              tabIndex={-1}
+              type="text"
+            />
+
+            <label className="checkbox-group input-group-full">
+              <input name="notABot" required type="checkbox" />
+              <span>I confirm this submission is being made by a real person.</span>
             </label>
 
             <label className="input-group input-group-full">
@@ -86,11 +81,12 @@ export default async function ReportPage({
 
           <div className="actions-row">
             <button className="primary-button" type="submit">
-              Create case
+              Check label
             </button>
             <p className="helper-text">
-              After upload, you will confirm the closest matching label and receive
-              a case reference for tracking.
+              After upload, the system classifies the image, extracts visible
+              fields, and either auto-rejects non-labels or creates a pending
+              reviewer case with a case reference.
             </p>
           </div>
         </form>
@@ -98,4 +94,3 @@ export default async function ReportPage({
     </main>
   );
 }
-
