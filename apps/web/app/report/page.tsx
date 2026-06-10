@@ -21,10 +21,13 @@ export default async function ReportPage({
         </div>
         <h1>Upload a label image and start a public review report.</h1>
         <p className="hero-copy">
-          We will save your image, run an automated label check, and issue a case
+          We will save your image, run a local OCR label check, and issue a case
           reference number so you can follow the report through review.
         </p>
         <div className="cta-row">
+          <Link className="secondary-button" href="/">
+            Home
+          </Link>
           <Link className="secondary-button" href="/case-status">
             Check case status
           </Link>
@@ -76,9 +79,9 @@ export default async function ReportPage({
               Check label
             </button>
             <p className="helper-text">
-              After upload, the system classifies the image, extracts visible
-              fields, and either auto-rejects non-labels or creates a pending
-              reviewer case with a case reference.
+              After upload, the system runs local OCR, extracts visible fields,
+              and either auto-rejects non-labels or creates a pending reviewer
+              case with a case reference.
             </p>
           </div>
         </form>

@@ -29,7 +29,7 @@ The product should optimize for:
 - `Postgres` for jobs, audit records, and verification results
 - blob/object storage for uploaded images
 - a deterministic verification engine, with OCR isolated behind a replaceable adapter
-- optional vision AI for public intake classification and field extraction
+- local `PaddleOCR` for public intake text extraction
 
 ## Suggested Initial Repository Layout
 

@@ -25,11 +25,11 @@ export const env = {
   get supabaseStorageBucketLabels() {
     return process.env.SUPABASE_STORAGE_BUCKET_LABELS ?? "label-review-images";
   },
-  get openAiApiKey() {
-    return process.env.OPENAI_API_KEY;
+  get paddleOcrPythonPath() {
+    return process.env.PADDLEOCR_PYTHON_PATH ?? "python";
   },
-  get openAiVisionModel() {
-    return process.env.OPENAI_VISION_MODEL ?? "gpt-5.4-mini";
+  get paddleOcrBridgePath() {
+    return process.env.PADDLEOCR_BRIDGE_PATH ?? "scripts/paddle_ocr_bridge.py";
   }
 };
 

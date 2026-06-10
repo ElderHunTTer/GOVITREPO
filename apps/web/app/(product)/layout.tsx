@@ -22,6 +22,9 @@ export default async function ProductLayout({
         </Link>
 
         <nav className="nav-links">
+          <Link className="nav-link" href="/">
+            Home
+          </Link>
           <Link className="nav-link" href="/dashboard">
             Dashboard
           </Link>

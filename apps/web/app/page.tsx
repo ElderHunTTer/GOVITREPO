@@ -27,7 +27,7 @@ export default async function HomePage() {
         <div className="hero-metrics">
           <article>
             <span>Primary workflow</span>
-            <strong>AI triage, queue, and review</strong>
+            <strong>OCR triage, queue, and review</strong>
           </article>
           <article>
             <span>Authentication</span>
@@ -81,7 +81,7 @@ export default async function HomePage() {
         <div className="summary-grid">
           <article>
             <span>Public intake</span>
-            <strong>Anonymous upload and automated triage</strong>
+            <strong>Anonymous upload and OCR triage</strong>
           </article>
           <article>
             <span>Accounts</span>

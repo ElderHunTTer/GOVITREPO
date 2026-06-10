@@ -25,3 +25,5 @@ This will be my casual thoughts process - Non Professional Persay....
     im trying to keep it cost efficient so im using free everything which means wiull nee d aworkaround using a GATCHA system
     Just a simple checkmark should do the trick.
 
+    sorry, gonna stick to paddleOCR/python as I dont got the budget to sub to openai. its okay ill make it work.
+

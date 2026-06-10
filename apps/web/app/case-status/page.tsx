@@ -30,6 +30,9 @@ export default async function CaseStatusPage({
             </p>
           </div>
           <div className="page-actions">
+            <Link className="secondary-button" href="/">
+              Home
+            </Link>
             <Link className="secondary-button" href="/report">
               Start a new report
             </Link>

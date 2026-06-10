@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getReviewerContext } from "@/lib/product";
 import { signInAction } from "./actions";
@@ -21,6 +22,11 @@ export default async function LoginPage({
   return (
     <main className="login-shell">
       <section className="login-card">
+        <div className="page-actions">
+          <Link className="secondary-button" href="/">
+            Home
+          </Link>
+        </div>
         <p className="eyebrow">Reviewer access</p>
         <h1>Sign in to the label review console.</h1>
         <p className="page-subtitle">

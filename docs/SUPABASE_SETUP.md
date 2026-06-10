@@ -21,15 +21,24 @@ Copy [\.env.example](/c:/Users/l7eIV/GOVITREPO/.env.example) into a local `.env.
 - `SUPABASE_SECRET_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_STORAGE_BUCKET_LABELS`
-- `OPENAI_API_KEY`
-- `OPENAI_VISION_MODEL`
+- `PADDLEOCR_PYTHON_PATH`
+- `PADDLEOCR_BRIDGE_PATH`
 
 Notes:
 
 - Prefer `SUPABASE_SECRET_KEY` for server-only access.
 - `SUPABASE_SERVICE_ROLE_KEY` is included as a fallback for legacy projects.
 - Never expose either server-only key in client-side code.
-- `OPENAI_API_KEY` is optional, but without it the public intake flow will fall back to human review instead of automated extraction.
+- `PADDLEOCR_PYTHON_PATH` defaults to `python` on this machine.
+- `PADDLEOCR_BRIDGE_PATH` defaults to `scripts/paddle_ocr_bridge.py`.
+- PaddleOCR requires a local Python install plus `paddlepaddle` and `paddleocr`.
+
+Recommended local install:
+
+```bash
+python -m pip install "numpy<2" --upgrade
+python -m pip install paddlepaddle==3.0.0 paddleocr
+```
 
 ## Repository Wiring
 
@@ -65,10 +74,11 @@ Add the same environment variables to the Vercel project for:
 1. Public user uploads a label image.
 2. The image is stored in Supabase Storage.
 3. A `public_report_cases` row is created with a case reference.
-4. Optional vision AI classifies whether the image is a TTB alcohol label.
-5. If confidence is high that it is not a label, the case is auto-rejected.
-6. Otherwise a `label_review_jobs` row is created for reviewer action.
-7. Reviewers can accept, deny, or request a second opinion.
+4. Local PaddleOCR extracts text from the uploaded image.
+5. The app applies deterministic heuristics to classify likely alcohol labels and extract candidate fields.
+6. If confidence is high that it is not a label, the case is auto-rejected.
+7. Otherwise a `label_review_jobs` row is created for reviewer action.
+8. Reviewers can accept, deny, or request a second opinion.
 
 ## Auth For Testing
 

@@ -11,7 +11,7 @@ export default async function DashboardPage() {
           <p className="eyebrow">Operations dashboard</p>
           <h1>Review queue and demo activity at a glance.</h1>
           <p className="page-subtitle">
-            Use the demo library for stable showcase runs, or monitor public AI
+            Use the demo library for stable showcase runs, or monitor public OCR
             intake jobs as they move into reviewer processing and image storage
             in Supabase.
           </p>

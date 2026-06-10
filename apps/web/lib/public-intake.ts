@@ -1,3 +1,8 @@
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { promises as fs } from "node:fs";
+import { spawn } from "node:child_process";
 import { buildExtractedFieldResult } from "@govit/core";
 import type {
   AutomatedLabelClassification,
@@ -33,6 +38,19 @@ type VisionAnalysis = {
 
 type DemoLabelRow = DemoLabel & {
   submittedFields: Record<string, string>;
+};
+
+type OcrLine = {
+  text: string;
+  confidence: number;
+  box: number[] | null;
+};
+
+type OcrPayload = {
+  pages: Array<{
+    input_path: string;
+    lines: OcrLine[];
+  }>;
 };
 
 export type AutomatedPublicIntakeResult = VisionAnalysis & {
@@ -77,44 +95,12 @@ function scoreDemoLabelMatch(
   return score;
 }
 
-function clampConfidence(value: unknown, fallback = 0) {
-  if (typeof value !== "number" || Number.isNaN(value)) {
+function clampConfidence(value: number, fallback = 0) {
+  if (Number.isNaN(value)) {
     return fallback;
   }
 
   return Math.max(0, Math.min(value, 1));
-}
-
-function cleanExtractedFields(
-  fields: Partial<Record<KnownFieldName, unknown>>
-): ExtractedSubmissionFields {
-  return Object.fromEntries(
-    KNOWN_FIELD_NAMES.map((fieldName) => {
-      const rawValue = fields[fieldName];
-      return [fieldName, typeof rawValue === "string" ? rawValue.trim() : ""];
-    }).filter(([, value]) => value)
-  );
-}
-
-function cleanFieldConfidences(
-  values: Partial<Record<KnownFieldName, unknown>>
-): Record<string, number> {
-  const entries: Array<[string, number]> = KNOWN_FIELD_NAMES.map((fieldName) => [
-    fieldName,
-    clampConfidence(values[fieldName], 0)
-  ]);
-
-  return Object.fromEntries(entries.filter(([, value]) => value > 0));
-}
-
-function stripCodeFence(value: string) {
-  const trimmed = value.trim();
-
-  if (!trimmed.startsWith("```")) {
-    return trimmed;
-  }
-
-  return trimmed.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
 }
 
 function summarizeStatuses(results: Pick<VerificationFieldResult, "status">[]) {
@@ -129,19 +115,245 @@ function summarizeStatuses(results: Pick<VerificationFieldResult, "status">[]) {
   return "pass" satisfies VerificationStatus;
 }
 
-function fallbackVisionAnalysis(): VisionAnalysis {
+function fallbackVisionAnalysis(message?: string): VisionAnalysis {
   return {
-    provider: "demo-fallback",
+    provider: "paddleocr-fallback",
     model: "heuristic",
     classification: "uncertain",
     classificationConfidence: 0.2,
     reviewConfidence: 0.2,
     aiSummary:
-      "Automated vision is not configured, so this case was routed to human review with no extracted fields.",
+      message ||
+      "Local OCR is not available, so this case was routed to human review with no extracted fields.",
     rejectionReason: null,
     extractedFields: {},
     extractionConfidences: {}
   };
+}
+
+function averageConfidence(lines: OcrLine[]) {
+  if (lines.length === 0) {
+    return 0;
+  }
+
+  return (
+    lines.reduce((sum, line) => sum + clampConfidence(line.confidence, 0), 0) /
+    lines.length
+  );
+}
+
+function extractBestMatch(lines: OcrLine[], pattern: RegExp) {
+  for (const line of lines) {
+    const match = line.text.match(pattern);
+
+    if (match?.[1]) {
+      return {
+        value: match[1].trim(),
+        confidence: clampConfidence(line.confidence, 0.5)
+      };
+    }
+  }
+
+  return null;
+}
+
+function inferClassType(lines: OcrLine[]) {
+  const categories = [
+    "straight bourbon whiskey",
+    "bourbon whiskey",
+    "straight rye whiskey",
+    "rye whiskey",
+    "whiskey",
+    "whisky",
+    "vodka",
+    "gin",
+    "tequila",
+    "rum",
+    "brandy",
+    "liqueur",
+    "wine",
+    "beer",
+    "ipa"
+  ];
+
+  for (const line of lines) {
+    const normalized = normalizeSearchText(line.text);
+    const category = categories.find((item) => normalized.includes(item));
+
+    if (category) {
+      return {
+        value: line.text.trim(),
+        confidence: clampConfidence(line.confidence, 0.6)
+      };
+    }
+  }
+
+  return null;
+}
+
+function inferBrandName(lines: OcrLine[], classType?: string) {
+  const ignoredPatterns = [
+    /government warning/i,
+    /alc\/vol/i,
+    /\bml\b/i,
+    /\bproof\b/i,
+    /bottled by/i,
+    /produced by/i,
+    /imported by/i,
+    /contents/i
+  ];
+
+  for (const line of lines) {
+    const text = line.text.trim();
+
+    if (text.length < 4 || text.length > 48) {
+      continue;
+    }
+
+    if (classType && text.toLowerCase() === classType.toLowerCase()) {
+      continue;
+    }
+
+    if (ignoredPatterns.some((pattern) => pattern.test(text))) {
+      continue;
+    }
+
+    if (!/[a-z]/i.test(text)) {
+      continue;
+    }
+
+    return {
+      value: text,
+      confidence: clampConfidence(line.confidence, 0.55)
+    };
+  }
+
+  return null;
+}
+
+function inferGovernmentWarning(lines: OcrLine[]) {
+  const warningIndex = lines.findIndex((line) => /government warning/i.test(line.text));
+
+  if (warningIndex === -1) {
+    return null;
+  }
+
+  const warningLines = lines
+    .slice(warningIndex, Math.min(warningIndex + 4, lines.length))
+    .map((line) => line.text.trim())
+    .filter(Boolean);
+
+  return {
+    value: warningLines.join(" "),
+    confidence: clampConfidence(averageConfidence(lines.slice(warningIndex, warningIndex + warningLines.length)), 0.6)
+  };
+}
+
+function inferProducer(lines: OcrLine[]) {
+  const producerMatch = extractBestMatch(
+    lines,
+    /(?:bottled by|produced by|distilled by|imported by)\s*(.+)$/i
+  );
+
+  if (producerMatch) {
+    return producerMatch;
+  }
+
+  return null;
+}
+
+function classifyLabel(allText: string, averageScore: number): {
+  classification: AutomatedLabelClassification;
+  classificationConfidence: number;
+  reviewConfidence: number;
+  rejectionReason: string | null;
+} {
+  const normalized = normalizeSearchText(allText);
+  const ttbSignals = [
+    "government warning",
+    "alc/vol",
+    "alcohol by volume",
+    "distilled",
+    "bottled by",
+    "750 ml",
+    "whiskey",
+    "bourbon",
+    "vodka",
+    "gin",
+    "tequila",
+    "rum",
+    "wine",
+    "beer"
+  ];
+
+  const signalCount = ttbSignals.filter((signal) => normalized.includes(signal)).length;
+
+  if (!normalized || normalized.length < 8 || averageScore < 0.18) {
+    return {
+      classification: "not_ttb_label",
+      classificationConfidence: 0.82,
+      reviewConfidence: 0.18,
+      rejectionReason: "The image did not produce enough recognizable label text to be treated as a likely TTB alcohol label."
+    };
+  }
+
+  if (signalCount >= 2) {
+    return {
+      classification: "ttb_label",
+      classificationConfidence: clampConfidence(0.72 + signalCount * 0.05, 0.72),
+      reviewConfidence: clampConfidence(0.7 + averageScore * 0.2, 0.7),
+      rejectionReason: null
+    };
+  }
+
+  return {
+    classification: "uncertain",
+    classificationConfidence: clampConfidence(0.45 + averageScore * 0.15, 0.45),
+    reviewConfidence: clampConfidence(0.45 + averageScore * 0.2, 0.45),
+    rejectionReason: null
+  };
+}
+
+async function runPaddleOcr(imagePath: string): Promise<OcrPayload> {
+  const bridgePath = path.resolve(process.cwd(), env.paddleOcrBridgePath);
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(env.paddleOcrPythonPath, [bridgePath, imagePath], {
+      cwd: process.cwd()
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on("error", reject);
+
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(stderr || `PaddleOCR bridge failed with code ${code}`));
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(stdout) as OcrPayload);
+      } catch (error) {
+        reject(
+          new Error(
+            `Could not parse PaddleOCR bridge output: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`
+          )
+        );
+      }
+    });
+  });
 }
 
 async function analyzeLabelImage(args: {
@@ -149,103 +361,77 @@ async function analyzeLabelImage(args: {
   mimeType: string;
   fileName: string;
 }): Promise<VisionAnalysis> {
-  if (!env.openAiApiKey) {
-    return fallbackVisionAnalysis();
+  const tempDir = await fs.mkdtemp(path.join(tmpdir(), "govit-ocr-"));
+  const tempPath = path.join(tempDir, `${randomUUID()}${path.extname(args.fileName) || ".png"}`);
+
+  try {
+    await fs.writeFile(tempPath, args.buffer);
+    const payload = await runPaddleOcr(tempPath);
+    const lines = payload.pages.flatMap((page) => page.lines).filter((line) => line.text.trim());
+
+    if (lines.length === 0) {
+      return fallbackVisionAnalysis(
+        "PaddleOCR did not detect readable text, so the case was routed to human review."
+      );
+    }
+
+    const averageScore = averageConfidence(lines);
+    const allText = lines.map((line) => line.text.trim()).join("\n");
+    const classType = inferClassType(lines);
+    const producer = inferProducer(lines);
+    const governmentWarning = inferGovernmentWarning(lines);
+    const alcoholByVolume = extractBestMatch(
+      lines,
+      /((?:\d{1,2}(?:\.\d+)?\s*%?\s*(?:alc\/vol|alcohol by volume|abv)))\b/i
+    );
+    const netContents = extractBestMatch(
+      lines,
+      /((?:\d+(?:\.\d+)?\s*(?:ml|mL|l|L|fl\.?\s*oz|oz)))\b/i
+    );
+    const brandName = inferBrandName(lines, classType?.value);
+    const classification = classifyLabel(allText, averageScore);
+
+    const extractedFields: ExtractedSubmissionFields = {};
+    const extractionConfidences: Record<string, number> = {};
+
+    const fieldEntries: Array<[KnownFieldName, { value: string; confidence: number } | null]> = [
+      ["brandName", brandName],
+      ["classType", classType],
+      ["netContents", netContents],
+      ["alcoholByVolume", alcoholByVolume],
+      ["governmentWarning", governmentWarning],
+      ["producer", producer]
+    ];
+
+    for (const [fieldName, field] of fieldEntries) {
+      if (!field?.value) {
+        continue;
+      }
+
+      extractedFields[fieldName] = field.value;
+      extractionConfidences[fieldName] = clampConfidence(field.confidence, 0.5);
+    }
+
+    return {
+      provider: "paddleocr",
+      model: "PaddleOCR 3.x general pipeline",
+      classification: classification.classification,
+      classificationConfidence: classification.classificationConfidence,
+      reviewConfidence: classification.reviewConfidence,
+      aiSummary:
+        classification.classification === "ttb_label"
+          ? "PaddleOCR detected multiple alcohol-label signals and extracted reviewable field candidates."
+          : classification.classification === "not_ttb_label"
+            ? classification.rejectionReason ||
+              "PaddleOCR did not detect text consistent with a likely TTB alcohol label."
+            : "PaddleOCR extracted some text, but the label type still needs human confirmation.",
+      rejectionReason: classification.rejectionReason,
+      extractedFields,
+      extractionConfidences
+    };
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
   }
-
-  const dataUrl = `data:${args.mimeType};base64,${args.buffer.toString("base64")}`;
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.openAiApiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: env.openAiVisionModel,
-      temperature: 0.1,
-      response_format: {
-        type: "json_object"
-      },
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a compliance intake assistant for alcohol beverage labels. Return only JSON. Determine whether the image is a likely TTB alcohol label. If it is not, explain why briefly. If it is, extract any visible values for brandName, classType, netContents, alcoholByVolume, governmentWarning, and producer. Provide confidence values from 0 to 1."
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text:
-                'Return JSON with this exact shape: {"classification":"ttb_label|not_ttb_label|uncertain","classificationConfidence":0-1,"reviewConfidence":0-1,"aiSummary":"brief summary","rejectionReason":"brief reason or null","extractedFields":{"brandName":"","classType":"","netContents":"","alcoholByVolume":"","governmentWarning":"","producer":""},"extractionConfidences":{"brandName":0-1,"classType":0-1,"netContents":0-1,"alcoholByVolume":0-1,"governmentWarning":0-1,"producer":0-1}}. Be conservative. If uncertain, use classification uncertain instead of guessing. File name: ' +
-                args.fileName
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: dataUrl
-              }
-            }
-          ]
-        }
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`OpenAI intake failed with status ${response.status}`);
-  }
-
-  const payload = (await response.json()) as {
-    choices?: Array<{
-      message?: {
-        content?: string | Array<{ type?: string; text?: string }>;
-      };
-    }>;
-  };
-
-  const rawContent = payload.choices?.[0]?.message?.content;
-  const content =
-    typeof rawContent === "string"
-      ? rawContent
-      : Array.isArray(rawContent)
-        ? rawContent
-            .map((part) => (typeof part.text === "string" ? part.text : ""))
-            .join("")
-        : "";
-
-  const parsed = JSON.parse(stripCodeFence(content)) as {
-    classification?: AutomatedLabelClassification;
-    classificationConfidence?: number;
-    reviewConfidence?: number;
-    aiSummary?: string;
-    rejectionReason?: string | null;
-    extractedFields?: Partial<Record<KnownFieldName, unknown>>;
-    extractionConfidences?: Partial<Record<KnownFieldName, unknown>>;
-  };
-
-  return {
-    provider: "openai",
-    model: env.openAiVisionModel,
-    classification:
-      parsed.classification === "ttb_label" ||
-      parsed.classification === "not_ttb_label" ||
-      parsed.classification === "uncertain"
-        ? parsed.classification
-        : "uncertain",
-    classificationConfidence: clampConfidence(parsed.classificationConfidence, 0.2),
-    reviewConfidence: clampConfidence(
-      parsed.reviewConfidence,
-      parsed.classification === "ttb_label" ? 0.7 : 0.2
-    ),
-    aiSummary: parsed.aiSummary?.trim() || "No automated summary was returned.",
-    rejectionReason: parsed.rejectionReason?.trim() || null,
-    extractedFields: cleanExtractedFields(parsed.extractedFields ?? {}),
-    extractionConfidences: cleanFieldConfidences(
-      parsed.extractionConfidences ?? {}
-    )
-  };
 }
 
 function buildLabelTitle(
@@ -347,12 +533,12 @@ export async function runAutomatedPublicIntake(args: {
 
   try {
     analysis = await analyzeLabelImage(args);
-  } catch {
-    analysis = {
-      ...fallbackVisionAnalysis(),
-      aiSummary:
-        "The automated vision provider could not process this image, so the case was routed to human review."
-    };
+  } catch (error) {
+    analysis = fallbackVisionAnalysis(
+      error instanceof Error
+        ? `PaddleOCR could not process this image, so the case was routed to human review. ${error.message}`
+        : "PaddleOCR could not process this image, so the case was routed to human review."
+    );
   }
 
   const candidateMatch = findCandidateLabels(args.labels, analysis.extractedFields);
