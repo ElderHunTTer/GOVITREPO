@@ -50,6 +50,15 @@ export default async function LoginPage({
             Sign in
           </button>
         </form>
+
+        <div className="login-note">
+          <p className="field-label">Test accounts</p>
+          <p>
+            reviewer@usa.gov / reviewer
+            <br />
+            admin@usa.gov / admin
+          </p>
+        </div>
       </section>
     </main>
   );
