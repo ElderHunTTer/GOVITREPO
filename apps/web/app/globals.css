@@ -79,7 +79,8 @@ img {
 .hero,
 .card-surface,
 .login-card,
-.site-header {
+.site-header,
+.utility-banner {
   border: 1px solid var(--panel-stroke);
   border-radius: 30px;
   background: var(--panel);
@@ -111,6 +112,7 @@ img {
 .result-head,
 .section-head,
 .site-header,
+.utility-banner,
 .account-panel,
 .nav-links,
 .page-actions,
@@ -125,6 +127,7 @@ img {
 .panel-heading,
 .section-head,
 .site-header,
+.utility-banner,
 .page-actions,
 .actions-row,
 .cta-row {
@@ -201,6 +204,7 @@ dt,
 .summary-grid,
 .result-grid,
 .landing-grid,
+.resource-grid,
 .detail-grid,
 .demo-grid,
 .detail-mini-grid,
@@ -236,6 +240,12 @@ dt,
 .landing-card {
   padding: 20px;
   background: rgba(255, 255, 255, 0.72);
+}
+
+.resource-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
 }
 
 .hero-metrics strong,
@@ -275,6 +285,10 @@ dt,
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
+.resource-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .page-stack {
   display: grid;
   gap: 24px;
@@ -295,6 +309,20 @@ dt,
 .panel-copy {
   max-width: 42rem;
   margin-top: 10px;
+}
+
+.utility-banner {
+  margin-bottom: 18px;
+  padding: 18px 22px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 255, 0.96)),
+    linear-gradient(90deg, rgba(19, 63, 122, 0.06), rgba(179, 32, 46, 0.02));
+}
+
+.utility-banner h2 {
+  font-size: clamp(1.05rem, 1.7vw, 1.3rem);
+  letter-spacing: -0.015em;
+  color: var(--blue-strong);
 }
 
 .primary-button,
@@ -567,9 +595,9 @@ dt,
 .demo-body h2,
 .section-head h2,
 .landing-card h2 {
-  font-size: clamp(1.3rem, 2vw, 1.7rem);
+  font-size: clamp(1.02rem, 1.45vw, 1.22rem);
   letter-spacing: -0.02em;
-  line-height: 1.15;
+  line-height: 1.24;
 }
 
 .result-card h3 {
@@ -688,6 +716,13 @@ dd {
   color: var(--fail);
 }
 
+.login-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
 .processing-overlay {
   position: fixed;
   inset: 0;
@@ -770,9 +805,11 @@ dd {
   .site-header,
   .page-header,
   .hero-band,
+  .utility-banner,
   .actions-row,
   .cta-row,
-  .section-head {
+  .section-head,
+  .login-prompt {
     align-items: flex-start;
     flex-direction: column;
   }

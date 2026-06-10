@@ -13,6 +13,16 @@ export default async function HomePage() {
 
   return (
     <main className="page-shell">
+      <section className="utility-banner">
+        <div>
+          <p className="eyebrow">Case lookup</p>
+          <h2>Looking for information or the status of your case?</h2>
+        </div>
+        <Link className="secondary-button" href="/case-status">
+          Check reference #
+        </Link>
+      </section>
+
       <section className="hero">
         <div className="hero-band">
           <p className="eyebrow">Digital label operations</p>
@@ -40,13 +50,7 @@ export default async function HomePage() {
         </div>
         <div className="cta-row">
           <Link className="primary-button" href="/report">
-            Report a label publicly
-          </Link>
-          <Link className="secondary-button" href="/case-status">
-            Check a case reference
-          </Link>
-          <Link className="primary-button" href="/login">
-            Sign in to the console
+            Report Label
           </Link>
         </div>
       </section>
@@ -100,6 +104,102 @@ export default async function HomePage() {
             <strong>Pass / Review / Fail outcomes</strong>
           </article>
         </div>
+      </section>
+
+      <section className="card-surface page-stack">
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">Official TTB resources</p>
+            <h2>Use TTB.gov for approval guidance, search tools, and labeling help.</h2>
+            <p className="panel-copy">
+              TTB offers official online systems and public guidance that are
+              useful before or alongside this reporting workflow.
+            </p>
+          </div>
+          <Link className="secondary-button" href="https://www.ttb.gov/" target="_blank">
+            Visit TTB.gov
+          </Link>
+        </div>
+
+        <div className="resource-grid">
+          <article className="landing-card resource-card">
+            <p className="eyebrow">Label approval</p>
+            <h2>COLAs Online</h2>
+            <p className="panel-copy">
+              Use TTB&apos;s COLAs Online system to apply for label approval and
+              track label submissions.
+            </p>
+            <Link
+              className="text-link"
+              href="https://www.ttb.gov/regulated-commodities/labeling/colas"
+              target="_blank"
+            >
+              Open COLAs Online
+            </Link>
+          </article>
+
+          <article className="landing-card resource-card">
+            <p className="eyebrow">Public search</p>
+            <h2>COLA Public Registry</h2>
+            <p className="panel-copy">
+              Search approved, expired, surrendered, or revoked label approvals
+              without needing an account.
+            </p>
+            <Link
+              className="text-link"
+              href="https://www.ttb.gov/regulated-commodities/labeling/cola-public-registry"
+              target="_blank"
+            >
+              Search the registry
+            </Link>
+          </article>
+
+          <article className="landing-card resource-card">
+            <p className="eyebrow">Formula guidance</p>
+            <h2>Formulas Online</h2>
+            <p className="panel-copy">
+              Submit and track formula approvals for domestic and imported
+              alcohol beverages and related products.
+            </p>
+            <Link
+              className="text-link"
+              href="https://www.ttb.gov/online-services/formulas-online"
+              target="_blank"
+            >
+              Open Formulas Online
+            </Link>
+          </article>
+
+          <article className="landing-card resource-card">
+            <p className="eyebrow">Labeling help</p>
+            <h2>Labeling resources</h2>
+            <p className="panel-copy">
+              Review labeling guidance, manuals, and mandatory labeling
+              information published by TTB.
+            </p>
+            <Link
+              className="text-link"
+              href="https://www.ttb.gov/regulated-commodities/labeling/labeling-resources"
+              target="_blank"
+            >
+              View labeling resources
+            </Link>
+          </article>
+        </div>
+      </section>
+
+      <section className="card-surface login-prompt">
+        <div>
+          <p className="eyebrow">Internal access</p>
+          <h2>Dashboard Login</h2>
+          <p className="panel-copy">
+            Reviewers and administrators can sign in to manage reports, inspect
+            evidence, and resolve queue items.
+          </p>
+        </div>
+        <Link className="primary-button" href="/login">
+          Dashboard Login
+        </Link>
       </section>
     </main>
   );
