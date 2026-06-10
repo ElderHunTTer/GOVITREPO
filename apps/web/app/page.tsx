@@ -18,7 +18,7 @@ export default async function HomePage() {
           <p className="eyebrow">Digital label operations</p>
           <span className="hero-chip">Supabase auth, storage, and review queue</span>
         </div>
-        <h1>Label review software designed like a real internal product.</h1>
+        <h1>TTB Label Reporting</h1>
         <p className="hero-copy">
           A reviewer and admin console for ingesting label images, running
           automated intake checks, and storing every artifact and decision in

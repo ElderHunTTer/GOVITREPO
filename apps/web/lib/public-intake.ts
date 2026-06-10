@@ -53,6 +53,12 @@ type OcrPayload = {
   }>;
 };
 
+type PythonLaunch = {
+  command: string;
+  args: string[];
+  label: string;
+};
+
 export type AutomatedPublicIntakeResult = VisionAnalysis & {
   candidateLabelIds: string[];
   matchedDemoLabelId: string | null;
@@ -316,9 +322,67 @@ function classifyLabel(allText: string, averageScore: number): {
 
 async function runPaddleOcr(imagePath: string): Promise<OcrPayload> {
   const bridgePath = path.resolve(process.cwd(), env.paddleOcrBridgePath);
+  const launchers = buildPythonLaunches(bridgePath, imagePath);
+  let lastError: Error | null = null;
 
+  for (const launcher of launchers) {
+    try {
+      return await spawnBridge(launcher);
+    } catch (error) {
+      lastError =
+        error instanceof Error
+          ? new Error(`${launcher.label}: ${error.message}`)
+          : new Error(`${launcher.label}: Unknown OCR launch error`);
+
+      if (
+        !(error instanceof Error) ||
+        (!error.message.includes("ENOENT") &&
+          !error.message.includes("not recognized") &&
+          !error.message.includes("cannot find"))
+      ) {
+        throw lastError;
+      }
+    }
+  }
+
+  throw lastError ?? new Error("No Python launcher was available for PaddleOCR.");
+}
+
+function buildPythonLaunches(bridgePath: string, imagePath: string): PythonLaunch[] {
+  const configured = env.paddleOcrPythonPath.trim();
+  const launches: PythonLaunch[] = [];
+
+  const addLaunch = (command: string, args: string[], label: string) => {
+    if (launches.some((entry) => entry.command === command && entry.args.join(" ") === args.join(" "))) {
+      return;
+    }
+
+    launches.push({ command, args, label });
+  };
+
+  if (configured.toLowerCase().endsWith("py.exe") || configured === "py") {
+    addLaunch(configured, ["-3", bridgePath, imagePath], `python launcher ${configured} -3`);
+    addLaunch(configured, [bridgePath, imagePath], `python launcher ${configured}`);
+  } else {
+    addLaunch(configured, [bridgePath, imagePath], `configured python ${configured}`);
+  }
+
+  if (process.platform === "win32") {
+    addLaunch("py", ["-3", bridgePath, imagePath], "python launcher py -3");
+    addLaunch("py", [bridgePath, imagePath], "python launcher py");
+    addLaunch("python", [bridgePath, imagePath], "python");
+    addLaunch("C:\\Windows\\py.exe", ["-3", bridgePath, imagePath], "python launcher C:\\Windows\\py.exe -3");
+  } else {
+    addLaunch("python3", [bridgePath, imagePath], "python3");
+    addLaunch("python", [bridgePath, imagePath], "python");
+  }
+
+  return launches;
+}
+
+function spawnBridge(launcher: PythonLaunch): Promise<OcrPayload> {
   return new Promise((resolve, reject) => {
-    const child = spawn(env.paddleOcrPythonPath, [bridgePath, imagePath], {
+    const child = spawn(launcher.command, launcher.args, {
       cwd: process.cwd()
     });
 
@@ -333,7 +397,9 @@ async function runPaddleOcr(imagePath: string): Promise<OcrPayload> {
       stderr += chunk.toString();
     });
 
-    child.on("error", reject);
+    child.on("error", (error) => {
+      reject(new Error(error.message));
+    });
 
     child.on("close", (code) => {
       if (code !== 0) {

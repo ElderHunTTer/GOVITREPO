@@ -26,7 +26,7 @@ export const env = {
     return process.env.SUPABASE_STORAGE_BUCKET_LABELS ?? "label-review-images";
   },
   get paddleOcrPythonPath() {
-    return process.env.PADDLEOCR_PYTHON_PATH ?? "python";
+    return process.env.PADDLEOCR_PYTHON_PATH ?? (process.platform === "win32" ? "py" : "python3");
   },
   get paddleOcrBridgePath() {
     return process.env.PADDLEOCR_BRIDGE_PATH ?? "scripts/paddle_ocr_bridge.py";
