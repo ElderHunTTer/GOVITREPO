@@ -25,6 +25,12 @@ export const env = {
   get supabaseStorageBucketLabels() {
     return process.env.SUPABASE_STORAGE_BUCKET_LABELS ?? "label-review-images";
   },
+  get geminiApiKey() {
+    return process.env.GEMINI_API_KEY;
+  },
+  get geminiVisionModel() {
+    return process.env.GEMINI_VISION_MODEL ?? "gemini-3.5-flash";
+  },
   get paddleOcrPythonPath() {
     return process.env.PADDLEOCR_PYTHON_PATH ?? (process.platform === "win32" ? "py" : "python3");
   },

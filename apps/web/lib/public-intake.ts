@@ -137,6 +137,45 @@ function fallbackVisionAnalysis(message?: string): VisionAnalysis {
   };
 }
 
+function cleanExtractedFields(
+  fields: Partial<Record<KnownFieldName, unknown>>
+): ExtractedSubmissionFields {
+  return Object.fromEntries(
+    KNOWN_FIELD_NAMES.map((fieldName) => {
+      const rawValue = fields[fieldName];
+      return [fieldName, typeof rawValue === "string" ? rawValue.trim() : ""];
+    }).filter(([, value]) => value)
+  );
+}
+
+function cleanFieldConfidences(
+  values: Partial<Record<KnownFieldName, unknown>>
+): Record<string, number> {
+  const entries: Array<[string, number]> = KNOWN_FIELD_NAMES.map((fieldName) => {
+    const rawValue = values[fieldName];
+    const numericValue =
+      typeof rawValue === "number"
+        ? rawValue
+        : typeof rawValue === "string"
+          ? Number(rawValue)
+          : 0;
+
+    return [fieldName, clampConfidence(numericValue, 0)];
+  });
+
+  return Object.fromEntries(entries.filter(([, value]) => value > 0));
+}
+
+function stripCodeFence(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed.startsWith("```")) {
+    return trimmed;
+  }
+
+  return trimmed.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+}
+
 function averageConfidence(lines: OcrLine[]) {
   if (lines.length === 0) {
     return 0;
@@ -320,6 +359,131 @@ function classifyLabel(allText: string, averageScore: number): {
   };
 }
 
+async function analyzeWithGemini(args: {
+  buffer: Buffer;
+  mimeType: string;
+  fileName: string;
+}): Promise<VisionAnalysis> {
+  if (!env.geminiApiKey) {
+    throw new Error("Gemini API key is not configured.");
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiVisionModel}:generateContent?key=${env.geminiApiKey}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text:
+                  'Analyze this uploaded image for an alcohol label review workflow. Return JSON only with this exact structure: {"classification":"ttb_label|not_ttb_label|uncertain","classificationConfidence":0-1,"reviewConfidence":0-1,"aiSummary":"brief summary","rejectionReason":"brief reason or null","extractedFields":{"brandName":"","classType":"","netContents":"","alcoholByVolume":"","governmentWarning":"","producer":""},"extractionConfidences":{"brandName":0-1,"classType":0-1,"netContents":0-1,"alcoholByVolume":0-1,"governmentWarning":0-1,"producer":0-1}}. Be conservative and avoid guessing. File name: ' +
+                  args.fileName
+              },
+              {
+                inline_data: {
+                  mime_type: args.mimeType,
+                  data: args.buffer.toString("base64")
+                }
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          response_mime_type: "application/json",
+          response_schema: {
+            type: "OBJECT",
+            properties: {
+              classification: {
+                type: "STRING",
+                enum: ["ttb_label", "not_ttb_label", "uncertain"]
+              },
+              classificationConfidence: { type: "NUMBER" },
+              reviewConfidence: { type: "NUMBER" },
+              aiSummary: { type: "STRING" },
+              rejectionReason: { type: "STRING", nullable: true },
+              extractedFields: {
+                type: "OBJECT",
+                properties: {
+                  brandName: { type: "STRING" },
+                  classType: { type: "STRING" },
+                  netContents: { type: "STRING" },
+                  alcoholByVolume: { type: "STRING" },
+                  governmentWarning: { type: "STRING" },
+                  producer: { type: "STRING" }
+                }
+              },
+              extractionConfidences: {
+                type: "OBJECT",
+                properties: {
+                  brandName: { type: "NUMBER" },
+                  classType: { type: "NUMBER" },
+                  netContents: { type: "NUMBER" },
+                  alcoholByVolume: { type: "NUMBER" },
+                  governmentWarning: { type: "NUMBER" },
+                  producer: { type: "NUMBER" }
+                }
+              }
+            },
+            required: [
+              "classification",
+              "classificationConfidence",
+              "reviewConfidence",
+              "aiSummary",
+              "extractedFields",
+              "extractionConfidences"
+            ]
+          }
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Gemini API failed with status ${response.status}`);
+  }
+
+  const payload = (await response.json()) as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{ text?: string }>;
+      };
+    }>;
+  };
+
+  const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
+  const parsed = JSON.parse(stripCodeFence(text)) as {
+    classification?: AutomatedLabelClassification;
+    classificationConfidence?: number;
+    reviewConfidence?: number;
+    aiSummary?: string;
+    rejectionReason?: string | null;
+    extractedFields?: Partial<Record<KnownFieldName, unknown>>;
+    extractionConfidences?: Partial<Record<KnownFieldName, unknown>>;
+  };
+
+  return {
+    provider: "gemini",
+    model: env.geminiVisionModel,
+    classification:
+      parsed.classification === "ttb_label" ||
+      parsed.classification === "not_ttb_label" ||
+      parsed.classification === "uncertain"
+        ? parsed.classification
+        : "uncertain",
+    classificationConfidence: clampConfidence(parsed.classificationConfidence ?? 0.2, 0.2),
+    reviewConfidence: clampConfidence(parsed.reviewConfidence ?? 0.2, 0.2),
+    aiSummary: parsed.aiSummary?.trim() || "No Gemini summary was returned.",
+    rejectionReason: parsed.rejectionReason?.trim() || null,
+    extractedFields: cleanExtractedFields(parsed.extractedFields ?? {}),
+    extractionConfidences: cleanFieldConfidences(parsed.extractionConfidences ?? {})
+  };
+}
+
 async function runPaddleOcr(imagePath: string): Promise<OcrPayload> {
   const bridgePath = path.resolve(process.cwd(), env.paddleOcrBridgePath);
   const launchers = buildPythonLaunches(bridgePath, imagePath);
@@ -427,6 +591,10 @@ async function analyzeLabelImage(args: {
   mimeType: string;
   fileName: string;
 }): Promise<VisionAnalysis> {
+  if (env.geminiApiKey) {
+    return analyzeWithGemini(args);
+  }
+
   const tempDir = await fs.mkdtemp(path.join(tmpdir(), "govit-ocr-"));
   const tempPath = path.join(tempDir, `${randomUUID()}${path.extname(args.fileName) || ".png"}`);
 
