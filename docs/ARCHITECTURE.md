@@ -2,226 +2,279 @@
 
 ## Overview
 
-The system should be built as a Vercel-first web application with a strict separation between:
+This repository is a Vercel-first Next.js product with Supabase-backed persistence and a hosted image-analysis step.
 
-- presentation and workflow
-- deterministic verification logic
-- vision and extraction infrastructure
-- persistence and audit history
+The current system is optimized for:
 
-This separation keeps the showcase stable even if vision implementation details change.
+- a polished demo flow
+- clear reviewer trust signals
+- deterministic field-level verification behavior
+- minimal moving parts in deployment
 
-## Architecture Goals
-
-- deploy cleanly on Vercel
-- support GitHub preview environments
-- keep compliance logic independent from hosting constraints
-- minimize risk from long-running vision operations
-- remain easy for new contributors and AI agents to understand
-
-## High-Level Design
+## Current System Map
 
 ```text
 Browser
-  -> Next.js UI
-  -> API Route / Server Action
-  -> Intake Orchestrator
-     -> Image Storage
-     -> Vision Adapter
-     -> Field Extractor
-     -> Document Classifier
-     -> Normalizer
-     -> Rules Engine
-     -> Decision Formatter
-     -> Postgres Audit Store
+  -> Next.js app router UI
+  -> Server Actions
+     -> Supabase Storage
+     -> Supabase Postgres
+     -> Supabase Auth
+     -> Gemini image analysis
+     -> Deterministic field comparison helpers
 ```
 
-## Recommended Repository Structure
+## Major Surfaces
 
-```text
-apps/
-  web/                 # Next.js application deployed to Vercel
-packages/
-  core/                # domain logic: normalize, compare, decide
-  types/               # shared schemas and enums
-  config/              # shared linting, tsconfig, env helpers
-  ocr/                 # vision or OCR adapter interfaces and implementations
-docs/
-  ARCHITECTURE.md
-  PRODUCT_CONTEXT.md
-```
+### Public reporting
+
+- `/report`
+- `/case-status`
+
+Responsibilities:
+
+- accept anonymous uploads
+- create case references
+- run automated intake
+- expose public-facing status without sign-in
+
+### Reviewer product
+
+- `/login`
+- `/dashboard`
+- `/demo-library`
+- `/reviews/new`
+- `/reviews/[id]`
+
+Responsibilities:
+
+- reviewer/admin authentication
+- queue and case management
+- internal image-first intake
+- reviewer decisions
+- evidence review and COLA search assistance
 
 ## Runtime Boundaries
 
-### 1. Web Application
+### 1. Next.js application
 
-Hosted on Vercel as the main product surface.
+Location:
 
-Responsibilities:
-
-- render reviewer UI
-- accept uploads
-- create verification jobs
-- fetch and present results
-- host documentation-friendly preview deployments
-
-### 2. Verification Core
-
-Pure TypeScript domain logic that should not depend on UI or hosting concerns.
+- `apps/web`
 
 Responsibilities:
 
-- field schemas
-- normalization
-- exact and tolerant comparison rules
-- decision scoring
-- result formatting
+- UI rendering
+- form handling
+- orchestration of storage, AI analysis, and persistence
+- reviewer session enforcement
 
-This package should be heavily unit tested and remain deploy-target agnostic.
+The app uses server actions rather than a separate API service for the main workflows.
 
-### 3. Vision Adapter Layer
+### 2. Domain logic
 
-The vision layer should be replaceable.
+Locations:
+
+- `packages/core`
+- `packages/types`
 
 Responsibilities:
 
-- receive an image reference
-- return extracted text, confidence values, and bounding boxes
-- hide provider-specific details from the rest of the app
+- normalized comparison logic
+- structured field decision generation
+- shared enums and product types
 
-This allows the project to start with one vision approach and switch later if Vercel packaging or performance becomes a constraint.
+Rules:
 
-### 4. Persistence Layer
+- keep domain logic typed
+- keep deterministic comparison logic outside React components
+- preserve explainability in result objects
 
-Use Postgres for structured records and blob storage for images.
+### 3. Automated intake layer
 
-Persist:
+Key file:
 
-- verification jobs
-- uploaded image metadata
-- extracted raw vision text
-- normalized field candidates
-- final field-level decisions
+- [apps/web/lib/public-intake.ts](/c:/Users/l7eIV/GOVITREPO/apps/web/lib/public-intake.ts)
 
-## Request Model
+Responsibilities:
 
-### Interactive Single Verification
+- send uploaded image bytes to Gemini
+- classify whether the image appears to be a TTB alcohol label
+- extract candidate fields
+- score confidence
+- produce field-level comparison records
+- fall back safely to manual review when automation fails
 
-Best for the first demo.
+Important design rule:
 
-Flow:
+- Gemini informs the intake, but it does not replace deterministic reviewer-facing result objects
 
-1. Public user uploads an image and passes a lightweight bot check.
-2. Server creates a case reference and stores the image.
-3. Vision classification decides whether the image looks like a TTB alcohol label.
-4. Non-labels may be auto-rejected with a reason when confidence is high.
-5. Valid or uncertain labels create reviewer jobs with extracted fields and confidence.
-6. UI renders evidence plus reviewer actions to accept, deny, or request a second opinion.
+### 4. Persistence and storage
 
-### Batch Verification
+Supabase is the system of record for:
 
-Deferred until the interactive flow is stable.
+- reviewer profiles
+- public report cases
+- review jobs
+- field-level verification results
+- demo labels
+- stored images
 
-Flow:
+## Current Data Model
 
-1. User uploads a set of images and a manifest.
-2. Server enqueues verification jobs.
-3. Results stream into a batch dashboard.
+### `public.label_review_jobs`
 
-## Decision Model
+Primary internal review record.
 
-Every field decision should include:
+Stores:
 
-- `status`
-- `expectedValue`
-- `detectedValue`
-- `confidence`
-- `reason`
-- `evidenceRegions`
+- source kind
+- label title
+- submitted fields
+- automated classification
+- automated summary
+- reviewer decision
+- reviewer notes
+- image path
 
-Allowed statuses:
+### `public.label_review_field_results`
 
-- `pass`
-- `review`
-- `fail`
+Field-level verification evidence for a job.
 
-## Vercel Deployment Strategy
+Stores:
 
-### First-Phase Hosting
+- field name
+- expected value
+- detected value
+- confidence
+- reason
+- pass/review/fail status
 
-Host the main Next.js app on Vercel.
+### `public.public_report_cases`
 
-Use:
+Public-facing case lifecycle record.
 
-- preview deployments for every pull request
-- production deployments from `main`
-- environment variables for storage, database, and vision settings
+Stores:
 
-### Vision Strategy
+- case reference
+- public status
+- uploaded image path
+- extracted fields
+- candidate label ids
+- linked internal job id
+- automated summary and rejection reason
 
-Prefer an adapter-based design from the start:
+### `public.demo_labels`
 
-- if vision extraction performs acceptably inside Vercel Functions, keep it in-app
-- if vision processing becomes too slow or heavy, move only the adapter implementation to a worker service
+Seeded showcase labels for demos.
 
-The rest of the system should not care where vision processing runs.
+Stores:
 
-## Data Model Sketch
+- title and metadata
+- stored image path
+- submitted fields
+- sample field results
 
-### VerificationJob
+### `public.reviewer_profiles`
 
-- `id`
-- `status`
-- `sourceImageUrl`
-- `submittedFields`
-- `createdAt`
-- `completedAt`
+Internal reviewer/admin access profile.
 
-### ExtractedField
+Stores:
 
-- `jobId`
-- `fieldName`
-- `rawValue`
-- `normalizedValue`
-- `confidence`
-- `evidenceRegions`
+- linked auth user id
+- role
+- active/disabled status
 
-### FieldDecision
+## Request Flows
 
-- `jobId`
-- `fieldName`
-- `status`
-- `expectedValue`
-- `detectedValue`
-- `reason`
+### Public intake
+
+1. User uploads an image.
+2. Server stores the image in Supabase Storage.
+3. Server creates a `public_report_cases` row in `processing`.
+4. Gemini analyzes the image.
+5. The app either:
+   - auto-rejects a clear non-label
+   - or creates a `label_review_jobs` row for reviewer handling
+6. The public case record is updated with extraction and status details.
+
+### Internal reviewer intake
+
+1. Reviewer uploads an image from `/reviews/new`.
+2. Server stores the image in Supabase Storage.
+3. The same automated intake path runs.
+4. Optional manual fields override or supplement extracted fields.
+5. A `label_review_jobs` record is created with automated evidence attached.
+
+### Reviewer decision
+
+1. Reviewer opens `/reviews/[id]`.
+2. Reviewer inspects image, extracted fields, and field results.
+3. Reviewer chooses `accepted`, `denied`, or `second_opinion`.
+4. Job status and summary status are updated.
+5. If linked to a public case, the public case status is updated too.
+
+## COLA Search Assistance
+
+The product now includes a lightweight TTB registry helper.
+
+Purpose:
+
+- reduce reviewer friction
+- provide a fast handoff from extracted fields into the official public registry
+
+Current behavior:
+
+- suggest a product name from extracted brand/title data
+- build a safe date window under TTB’s 15-year limit
+- open the TTB Public COLA Registry search in a new tab
+
+This is intentionally assistive, not authoritative.
+
+## Deployment Model
+
+### Current
+
+- `Next.js` hosted on Vercel
+- Supabase for database, auth, and storage
+- Gemini via outbound HTTP from server actions
+
+### Not required
+
+- no separate OCR worker
+- no local Python process
+- no extra queue service for the current demo path
 
 ## Testing Strategy
 
-### Unit Tests
+### Must-have
 
-Focus on:
+- `typecheck`
+- `lint`
+- build validation before shipping
 
-- exact warning validation
-- normalization behavior
-- structured numeric parsing
+### Domain coverage
+
+Focus tests in `packages/core` on:
+
+- exact-text rules
+- normalization
+- structured field extraction helpers
 - pass/review/fail thresholds
 
-### Integration Tests
+### Product confidence
 
-Focus on:
+Use:
 
-- upload to result workflow
-- vision adapter contract behavior
-- persistence of evidence and decisions
-
-### Golden Fixture Tests
-
-Maintain a small fixture set of sample labels to prevent regressions.
+- seeded demo labels
+- manual upload checks
+- public-case round trips
+- reviewer-decision verification
 
 ## Architectural Guardrails
 
-1. Do not put compliance decision logic directly in UI code.
-2. Do not let vision provider details leak into domain models.
-3. Do not treat uncertain extraction as a passing result.
-4. Do not let opaque model output bypass deterministic reviewer-facing decisions.
-5. Do not optimize for batch scale before the single-review experience feels solid.
+1. Do not embed business rules directly in React components.
+2. Do not let AI output directly replace deterministic field decisions.
+3. Do not treat weak extraction as a passing result.
+4. Keep public status lookup separate from reviewer-only actions.
+5. Keep storage, auth, and analysis concerns visible in docs whenever they change.

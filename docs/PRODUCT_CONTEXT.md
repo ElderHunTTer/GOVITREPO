@@ -2,85 +2,146 @@
 
 ## Working Summary
 
-This project is a showcaseable label verification product based on the `treasurytakehome-rgb/instructions` take-home prompt.
+This project is a showcaseable product for TTB label reporting and reviewer verification.
 
-The product helps a reviewer compare a submitted label image against extracted or submitted metadata and quickly identify whether key fields appear valid, suspicious, or non-compliant.
+It combines:
 
-## Primary User
+- public label reporting without account creation
+- internal reviewer/admin handling
+- automated label triage and extraction
+- deterministic field-level evidence
+- a clean path to human review
 
-The primary user is an internal reviewer who needs to:
+## Primary Product Story
 
-- upload or inspect a label image
-- compare extracted label values to structured application values
-- receive a fast, explainable verification result
-- see what triggered a `review` or `fail`
+### Public user
 
-The secondary user is a public submitter who needs to:
+The public user should be able to:
 
-- upload a label image without creating an account
-- pass a lightweight bot check
-- receive a case reference number immediately
-- check whether the case was auto-rejected, queued, or resolved
+- report a label with only an image upload
+- pass a simple bot confirmation
+- receive a case reference number
+- check status later without signing in
+
+The public flow should feel like a real product, not a developer tool.
+
+### Reviewer or admin
+
+The reviewer/admin should be able to:
+
+- sign in with Supabase Auth
+- inspect incoming public cases
+- create internal review jobs directly from image upload
+- use optional manual field overrides
+- accept, deny, or request a second opinion
+- use TTB COLA search assistance when helpful
+
+## Current Product Scope
+
+### Included
+
+- public report intake
+- public case tracking
+- reviewer sign-in
+- reviewer dashboard
+- demo library
+- internal reviewer intake
+- uploaded image preview with zoom and pan
+- automated Gemini analysis
+- Supabase-backed storage and persistence
+- seeded demo label assets
+
+### Intentionally limited for now
+
+- no official TTB API integration
+- no auto-approval workflow
+- no advanced org/user management
+- no batch processing system
+- no background queue service
 
 ## Product Goals
 
-- Deliver a demo-friendly reviewer workflow that looks polished on Vercel.
-- Deliver a simple public intake flow that feels like a real product.
-- Keep the core verification logic deterministic and testable.
-- Make every result explainable with field-level evidence.
-- Support single-label verification first, then batch review.
-
-## Non-Goals For The First Iteration
-
-- full production-grade COLA integration
-- advanced organization and admin tooling
-- auto-approval without evidence or confidence checks
-- model-heavy AI orchestration in the critical path
+- feel polished enough to demo on Vercel
+- make reviewer actions understandable and trustworthy
+- preserve evidence for each important decision
+- keep the compliance logic explainable
+- keep the architecture simple enough for fast iteration
 
 ## Verification Philosophy
 
-Different fields have different compliance sensitivity:
+The product should separate:
 
-- `Exact match fields`
-  - Government warning text
-  - Other legally required statements where wording matters
-- `Normalized match fields`
-  - Brand name
-  - Product class descriptors that may differ in capitalization or punctuation
-- `Structured value fields`
-  - ABV
-  - Proof
-  - Net contents
+- automated intake assistance
+- deterministic comparison logic
+- human reviewer judgment
 
-The system should not treat all mismatch types equally. It should explain why a difference matters.
+### Automation should do
+
+- classify likely label vs likely non-label
+- extract likely fields
+- propose evidence and confidence
+- speed up reviewer work
+
+### Automation should not do
+
+- silently replace reviewer oversight
+- convert uncertainty into a pass
+- hide confidence or reasoning
 
 ## Outcome Model
 
-Every field comparison should produce:
+Every important result should converge on:
 
-- `status`: `pass | review | fail`
-- `expectedValue`
-- `detectedValue`
-- `confidence`
-- `reason`
-- `evidence`
+- `pass`
+- `review`
+- `fail`
+
+Every field-level decision should remain explainable with:
+
+- expected value
+- detected value
+- confidence
+- reason
 
 ## Demo Priorities
 
-- smooth upload and processing flow
-- strong visual explanation of each result
-- fast preview deployment workflow
-- reliable seeded demo data for showcase environments
+- smooth public intake flow
+- strong reviewer detail pages
+- reliable seeded examples
+- production-like UI quality
+- easy setup for local and preview environments
 
-## Future Evolution
+## Current UX Principles
 
-The product should be able to evolve from:
+- image-first workflows
+- minimal account friction for the public
+- optional manual fields for reviewers, not mandatory first-step forms
+- high-clarity status surfaces
+- clean fallback behavior when AI extraction fails
 
-- single-label synchronous verification
+## TTB COLA Positioning
 
-to:
+The TTB Public COLA Registry is used as a reviewer-assist surface, not as a guaranteed integration.
 
-- queued and batched verification
-- stronger OCR adapters
-- reviewer feedback loops
-- production observability and audit reporting
+Current product behavior:
+
+- suggest a COLA product search term
+- open the public registry with a prefilled search
+- keep the reviewer in control of interpreting results
+
+## Near-Term Evolution
+
+Good next steps after the current baseline:
+
+- richer extracted field display
+- clearer reviewer audit history
+- better admin controls
+- deeper seeded fixtures and tests
+- optional reviewer-side COLA search mode switching
+
+## Non-Goals For This Stage
+
+- enterprise workflow complexity
+- automated enforcement without human traceability
+- provider-specific lock-in in the domain layer
+- hidden business rules living only in prompts or UI code

@@ -1,25 +1,30 @@
 # Supabase Setup
 
-## Active Project
+## Purpose
 
-The current Supabase project connected for this app is:
+Supabase is used in this product for:
 
-- `https://gftwjoencmxeailojvgt.supabase.co`
-
-This project was verified as effectively empty before app-specific setup:
-
-- no app tables in `public`
-- only default `storage.*` system tables
-- no storage buckets created yet
+- Postgres data storage
+- reviewer authentication
+- image storage
+- signed image delivery
 
 ## Environment Variables
 
-Copy [\.env.example](/c:/Users/l7eIV/GOVITREPO/.env.example) into a local `.env.local` file or add the same variables in Vercel:
+Copy [\.env.example](/c:/Users/l7eIV/GOVITREPO/.env.example) to `.env.local` and fill in the values.
+
+Required:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SECRET_KEY`
+
+Optional fallback:
+
 - `SUPABASE_SERVICE_ROLE_KEY`
+
+App configuration:
+
 - `SUPABASE_STORAGE_BUCKET_LABELS`
 - `GEMINI_API_KEY`
 - `GEMINI_VISION_MODEL`
@@ -27,64 +32,72 @@ Copy [\.env.example](/c:/Users/l7eIV/GOVITREPO/.env.example) into a local `.env.
 
 Notes:
 
-- Prefer `SUPABASE_SECRET_KEY` for server-only access.
-- `SUPABASE_SERVICE_ROLE_KEY` is included as a fallback for legacy projects.
-- Never expose either server-only key in client-side code.
-- `GEMINI_API_KEY` enables hosted image understanding that works on Vercel.
-- `GEMINI_VISION_MODEL` defaults to `gemini-3.5-flash`.
-- `INTAKE_DEBUG=true` enables more verbose server-side intake logs during debugging.
+- `SUPABASE_SECRET_KEY` is the preferred server-side admin credential.
+- `SUPABASE_SERVICE_ROLE_KEY` is supported as a fallback.
+- the browser app still requires `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_STORAGE_BUCKET_LABELS` defaults to `label-review-images`
+- `GEMINI_VISION_MODEL` defaults to `gemini-3.5-flash`
 
-## Repository Wiring
+## Current App-Owned Supabase Surface
 
-The app uses three Supabase helpers:
-
-- browser client: [apps/web/lib/supabase/client.ts](/c:/Users/l7eIV/GOVITREPO/apps/web/lib/supabase/client.ts)
-- server client: [apps/web/lib/supabase/server.ts](/c:/Users/l7eIV/GOVITREPO/apps/web/lib/supabase/server.ts)
-- admin client: [apps/web/lib/supabase/admin.ts](/c:/Users/l7eIV/GOVITREPO/apps/web/lib/supabase/admin.ts)
-
-## App-Owned Database Surface
-
-This app should only use its own resources:
+Tables:
 
 - `public.label_review_jobs`
 - `public.label_review_field_results`
 - `public.public_report_cases`
 - `public.demo_labels`
 - `public.reviewer_profiles`
-- storage bucket `label-review-images`
 
-No other project tables should be used for this application.
+Storage bucket:
 
-## Vercel
+- `label-review-images` by default
 
-Add the same environment variables to the Vercel project for:
+## Migrations
 
-- Production
-- Preview
-- Development
+Current repository migrations live in:
 
-## Current Public Intake Flow
+- [supabase/migrations](/c:/Users/l7eIV/GOVITREPO/supabase/migrations)
 
-1. Public user uploads a label image.
-2. The image is stored in Supabase Storage.
-3. A `public_report_cases` row is created with a case reference.
-4. Gemini vision is used to classify the image and extract candidate fields.
-5. If confidence is high that it is not a label, the case is auto-rejected.
-6. Otherwise a `label_review_jobs` row is created for reviewer action.
-7. Reviewers can accept, deny, or request a second opinion.
+Current ordered set:
 
-## Auth For Testing
+```text
+20260609205000_label_review_foundation.sql
+20260609213500_product_auth_and_demo_labels.sql
+20260609215000_allow_svg_demo_uploads.sql
+20260609221500_public_report_cases.sql
+20260609234500_automated_public_intake.sql
+```
 
-This project now uses simple Supabase Auth for internal reviewer access.
+Apply them in order using either:
 
-Recommended test setup:
+- the Supabase CLI
+- or the Supabase SQL editor
 
-1. In Supabase Auth settings, disable email confirmation for local testing if you want immediate email/password sign-in.
-2. Create users directly in Supabase Auth.
-3. Each new auth user will automatically get a `reviewer_profiles` row with default role `reviewer`.
-4. Promote a user to admin by updating `reviewer_profiles.role` to `admin`.
+## Storage
 
-Example SQL:
+The app stores:
+
+- public report images
+- internal reviewer upload images
+- seeded demo label assets
+
+Images are uploaded into the configured bucket and later served through signed URLs.
+
+## Auth
+
+Supabase Auth is used for reviewer/admin access only.
+
+Public reporting does not require a login.
+
+### Recommended local test setup
+
+1. Disable email confirmation in Supabase Auth for local testing if desired.
+2. Create a user in Supabase Auth.
+3. Confirm that a `reviewer_profiles` row exists for that user.
+4. Ensure `status = 'active'`.
+5. Update `role` to `admin` if you need admin access.
+
+Example:
 
 ```sql
 update public.reviewer_profiles
@@ -92,4 +105,64 @@ set role = 'admin'
 where email = 'your-admin@example.com';
 ```
 
-Only users with an active `reviewer_profiles` record should use the app.
+## Reviewer access expectations
+
+Only users with an active reviewer profile should be able to enter the internal product routes.
+
+If login succeeds but the app rejects access, check:
+
+- matching `reviewer_profiles.id`
+- `reviewer_profiles.status`
+- whether the auth user exists in the correct Supabase project
+
+## Seeded demo labels
+
+Seed showcase data with:
+
+```bash
+npm run seed:demo-labels
+```
+
+The script:
+
+- reads `.env.local`
+- uploads demo SVG labels into the storage bucket
+- upserts rows into `public.demo_labels`
+
+The script requires:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`
+
+## Vercel
+
+Add the same env vars to Vercel for:
+
+- `Production`
+- `Preview`
+- `Development`
+
+If Vercel is missing any of the public or server-side Supabase variables, the app will fail during runtime.
+
+## Current product flow through Supabase
+
+### Public intake
+
+1. user uploads image
+2. image is stored in Supabase Storage
+3. `public_report_cases` row is created
+4. automated intake runs
+5. a reviewer job may be created
+
+### Internal intake
+
+1. reviewer uploads image
+2. image is stored in Supabase Storage
+3. automated intake runs
+4. `label_review_jobs` row is created with extracted fields and evidence
+
+### Review handling
+
+1. reviewer updates decision
+2. `label_review_jobs` is updated
+3. related `public_report_cases` status updates when linked

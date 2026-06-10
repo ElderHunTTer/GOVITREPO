@@ -1,111 +1,121 @@
 # Collaboration Guide
 
-This repository is intended for collaborative development between human contributors and AI coding agents.
+This repository is built for collaboration between human contributors and AI coding agents.
 
 ## Shared Working Agreement
 
 We optimize for:
 
 - small, reviewable changes
-- explicit architecture decisions
-- deterministic core behavior
-- good handoff quality
-- clear reasoning in docs and pull requests
+- docs that match the shipped code
+- deterministic domain behavior
+- clean handoffs
+- stable local and Vercel workflows
 
-## How We Work
+## Working Style
 
 ### Branching
 
-- use short-lived feature branches
-- open pull requests early for visibility
-- rely on Vercel preview deployments for UI and workflow review
+- use short-lived branches
+- open pull requests early
+- use Vercel previews for UI review and flow validation
 
-### Pull Requests
+### Pull requests
 
-Each PR should aim to include:
-
-- a concise summary of the change
-- why the change was needed
-- any architecture or product tradeoffs
-- screenshots or preview links for UI work
-- notes about test coverage or remaining risk
-
-### Commit Style
-
-Prefer focused commits that group one coherent change at a time.
-
-Examples:
-
-- `docs: add architecture and collaboration baseline`
-- `feat: scaffold verification core package`
-- `feat: add label upload workflow`
-- `test: cover warning text normalization rules`
-
-## Human And AI Handoffs
-
-When handing work between contributors, leave behind:
-
-- updated docs when assumptions changed
-- clear TODOs with context
-- explicit unresolved questions
-- enough structure that the next contributor does not need to rediscover intent
-
-## Decision Records
-
-If a decision materially changes the stack or product direction, record:
+Each PR should ideally include:
 
 - what changed
 - why it changed
-- alternatives considered
-- what it unlocks or constrains
+- screenshots or preview links for UI changes
+- any schema or env implications
+- test, lint, typecheck, or build notes
 
-This can live in a future `docs/decisions/` directory if the repository grows.
+### Commits
+
+Prefer focused commits with one coherent purpose.
+
+Examples:
+
+- `feat: add public case tracking flow`
+- `feat: wire reviewer intake to automated analysis`
+- `docs: sync setup guide with supabase and gemini flow`
+- `fix: persist reviewer decision into public case status`
+
+## Documentation Discipline
+
+When behavior changes, update the docs in the same change whenever possible.
+
+Expected touchpoints:
+
+- `README.md`
+  - install, env, run, and operator workflow changes
+- `docs/ARCHITECTURE.md`
+  - system boundaries, runtime model, or storage/auth/AI changes
+- `docs/PRODUCT_CONTEXT.md`
+  - user flow or product philosophy changes
+- `docs/SUPABASE_SETUP.md`
+  - schema, auth, storage, or env changes
+- `AGENTS.md`
+  - stable contributor guidance changes
+
+## Human and AI Handoffs
+
+Leave behind:
+
+- updated context docs when assumptions changed
+- clear TODOs with enough surrounding context
+- explicit notes on tradeoffs or limitations
+- commands used for verification when relevant
+
+The next contributor should not need to reverse-engineer intent from code alone.
 
 ## Definition Of Ready
 
-Before starting implementation work, we should usually know:
+Before starting a change, we should usually know:
 
-- the user-facing goal
-- the affected system boundary
-- whether the change belongs in UI, domain, OCR, or persistence
-- how the change will be verified
+- the user-facing outcome
+- the affected route or subsystem
+- the data model impact
+- the verification plan
 
 ## Definition Of Done
 
 A change is closer to done when:
 
-- code and docs agree
-- core logic is testable
-- preview deployment behavior is understood
-- the change is explainable to a new contributor
+- docs and code agree
+- env/setup impact is documented
+- local run instructions still work
+- lint, typecheck, and build status are known
+- the behavior is explainable to a new contributor
 
-## Early Repository Conventions
+## Preferred Technical Conventions
 
 ### Code
 
 - prefer TypeScript
-- keep domain logic pure where possible
-- share schemas from a common package
-- isolate provider-specific adapters behind interfaces
+- keep reusable logic outside route components
+- preserve typed product contracts
+- keep provider-specific behavior isolated
 
-### Docs
+### Product behavior
 
-- keep top-level docs stable and high signal
-- update architecture docs when boundaries move
-- avoid stale aspirational docs that no longer reflect the code
+- route uncertainty to `review`
+- prefer explainable evidence over opaque outcomes
+- keep reviewer trust higher than automation ambition
 
-### UX
+### UI
 
-- prefer confidence-building explanations over black-box outputs
-- show field-level evidence when possible
-- degrade to `review` when certainty is weak
+- optimize for polished but understandable flows
+- keep public and reviewer journeys feeling like one product
+- avoid making users type data that the system can reasonably extract first
 
-## First Milestone Collaboration Focus
+## Decision Records
 
-The first implementation milestone should align contributors around:
+If a change materially alters stack, schema, hosting, or workflow direction, record:
 
-- repo scaffolding
-- shared types
-- verification result schema
-- a basic upload-to-result flow
-- preview-deployable UI shell
+- what changed
+- why
+- rejected alternatives if relevant
+- follow-on consequences
+
+If the repo grows, these can move into `docs/decisions/`.
