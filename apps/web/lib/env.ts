@@ -29,7 +29,7 @@ export const env = {
     return process.env.OPENAI_API_KEY;
   },
   get openAiVisionModel() {
-    return process.env.OPENAI_VISION_MODEL ?? "gpt-4.1-mini";
+    return process.env.OPENAI_VISION_MODEL ?? "gpt-5.4-mini";
   }
 };
 
