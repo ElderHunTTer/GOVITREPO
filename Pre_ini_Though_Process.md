@@ -1,7 +1,10 @@
 Gerardo Yanez - Though Process
+This will be my casual thoughts process - Non Professional Persay....
+
+
     Decided to start with reading the Interview Comments and Notes. A few tidbits stuck with me, Mostly, about how modernization was a key reason for system improvements. Taking that into account I wanted to create a some sort of SaaS that ran on a Workers PC, This would keep it secure and tamper safe aslong as the computer itself isnt compromised, but in the interested of speed i opted to use Vercel to host a small Web Application that can handle API and POST to a database to simulate accessing the TTB Database.
 
-    Im currently using Codex in VSCode to plan out the logistics of creating it, then i would run a quick scan to evaluate with my own experience and skills to see if everything is up to par.
+    Im currently using Codex in VSCode to plan out the logistics of creating a vertical slice of a product, then i would run a quick scan to evaluate with my own experience and skills to see if everything is up to par.
 
     I also need to initialize the repo as requested and makes ure the program is running outside of my sandboxed enviorment.... Ooops i kept the REPO name the same as my workspace and it looks kinda awkawrd...
 
@@ -13,6 +16,9 @@ Gerardo Yanez - Though Process
 
     Ugh... now that i think about it itll need to be a full responsive for mobile aswell as smooth UI/UX (I mean everything should be anyways right)
 
-    Im thinking that for the OCR instead of using some kind of python librabry to read the images we can use a simple AI like chatgpt for that purpose...
+    Im thinking that for the OCR instead of using some kind of python library to read the images we can use a simple AI like chatgpt for that purpose... ims ure the goverment will use its own internal AI? We could use both as a way to verify information is correctly been OCRd
 
-    Im guessing will need Admin Accounts/ Reviewer accounts and User accounts... this is mostly so users have a referense to any scans of labels they done.
+    Im guessing will need Admin Accounts/ Reviewer accounts and User accounts... this is mostly so users have a reference to any scans of labels they done. Keep History, Review Statuses and other information.ill make some default admin and reviwers accounts for testing purposes.
+
+    Im running a Security pass, Making sure we got no exposed Keys or vulnerabilities the AI might have missed.
+

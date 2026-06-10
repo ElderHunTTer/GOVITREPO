@@ -2,6 +2,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import type {
   DemoLabel,
+  PublicCaseStatus,
   ReviewSourceKind,
   ReviewerProfile,
   VerificationFieldResult,
@@ -30,6 +31,20 @@ type FieldResultRow = {
   detected_value: string;
   confidence: number;
   reason: string;
+};
+
+type PublicReportCaseRow = {
+  id: string;
+  case_reference: string;
+  status: PublicCaseStatus;
+  reported_label_name: string;
+  reported_category: string;
+  uploaded_image_path: string;
+  matched_demo_label_id: string | null;
+  candidate_label_ids: string[] | null;
+  internal_job_id: string | null;
+  created_at: string;
+  submitted_at: string | null;
 };
 
 export const getReviewerContext = cache(async () => {
@@ -146,6 +161,7 @@ export async function getDashboardData() {
     reviewJobs,
     failedJobs,
     demoLabels,
+    publicCases,
     recentJobsResponse
   ] = await Promise.all([
     admin.from("label_review_jobs").select("id", { count: "exact", head: true }),
@@ -158,6 +174,7 @@ export async function getDashboardData() {
       .select("id", { count: "exact", head: true })
       .eq("summary_status", "fail"),
     admin.from("demo_labels").select("id", { count: "exact", head: true }),
+    admin.from("public_report_cases").select("id", { count: "exact", head: true }),
     admin
       .from("label_review_jobs")
       .select(
@@ -172,7 +189,8 @@ export async function getDashboardData() {
       totalJobs: totalJobs.count ?? 0,
       reviewJobs: reviewJobs.count ?? 0,
       failedJobs: failedJobs.count ?? 0,
-      demoLabels: demoLabels.count ?? 0
+      demoLabels: demoLabels.count ?? 0,
+      publicCases: publicCases.count ?? 0
     },
     recentJobs:
       recentJobsResponse.data?.map((job: {
@@ -248,5 +266,162 @@ export async function getJobDetail(jobId: string) {
     },
     imageUrl: await createSignedImageUrl(job.source_image_path),
     fieldResults: (fieldRows ?? []).map(mapFieldResult)
+  };
+}
+
+export function normalizeSearchText(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function scoreDemoLabelMatch(
+  demoLabel: Pick<DemoLabel, "title" | "producer" | "category" | "slug">,
+  query: string
+) {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return 0;
+  }
+
+  const title = normalizeSearchText(demoLabel.title);
+  const producer = normalizeSearchText(demoLabel.producer);
+  const category = normalizeSearchText(demoLabel.category);
+  const slug = normalizeSearchText(demoLabel.slug.replace(/-/g, " "));
+
+  if (title === normalizedQuery || slug === normalizedQuery) {
+    return 100;
+  }
+
+  let score = 0;
+
+  if (title.includes(normalizedQuery)) score += 60;
+  if (producer.includes(normalizedQuery)) score += 30;
+  if (category.includes(normalizedQuery)) score += 25;
+  if (slug.includes(normalizedQuery)) score += 40;
+
+  return score;
+}
+
+export function buildCaseReference() {
+  const date = new Date();
+  const stamp = [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0")
+  ].join("");
+  const token = Math.random().toString(36).slice(2, 8).toUpperCase();
+
+  return `TTB-${stamp}-${token}`;
+}
+
+export async function getPublicCase(caseReference: string) {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("public_report_cases")
+    .select("*")
+    .eq("case_reference", caseReference)
+    .maybeSingle<PublicReportCaseRow>();
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    id: data.id,
+    caseReference: data.case_reference,
+    status: data.status,
+    reportedLabelName: data.reported_label_name,
+    reportedCategory: data.reported_category,
+    uploadedImagePath: data.uploaded_image_path,
+    matchedDemoLabelId: data.matched_demo_label_id,
+    candidateLabelIds: data.candidate_label_ids ?? [],
+    internalJobId: data.internal_job_id,
+    createdAt: data.created_at,
+    submittedAt: data.submitted_at
+  };
+}
+
+export async function getPublicCaseDetail(caseReference: string) {
+  const admin = createAdminClient();
+  const caseRow = await getPublicCase(caseReference);
+
+  if (!caseRow) {
+    return null;
+  }
+
+  const matchedLabel = caseRow.matchedDemoLabelId
+    ? await admin
+        .from("demo_labels")
+        .select("*")
+        .eq("id", caseRow.matchedDemoLabelId)
+        .maybeSingle()
+    : { data: null };
+
+  return {
+    caseRecord: caseRow,
+    imageUrl: await createSignedImageUrl(caseRow.uploadedImagePath),
+    matchedLabel: matchedLabel.data ? mapDemoLabel(matchedLabel.data) : null
+  };
+}
+
+export async function getPublicCaseCandidates(
+  caseReference: string,
+  query: string | null
+) {
+  const admin = createAdminClient();
+  const caseRow = await getPublicCase(caseReference);
+
+  if (!caseRow) {
+    return null;
+  }
+
+  const { data } = await admin
+    .from("demo_labels")
+    .select("*")
+    .order("title", { ascending: true });
+
+  const labels = (data ?? []).map(mapDemoLabel);
+  const effectiveQuery =
+    query && query.trim()
+      ? query
+      : [caseRow.reportedLabelName, caseRow.reportedCategory]
+          .filter(Boolean)
+          .join(" ");
+
+  const prioritized = labels
+    .map((label) => ({
+      ...label,
+      score: scoreDemoLabelMatch(label, effectiveQuery)
+    }))
+    .sort((left, right) => {
+      const leftPreferred = caseRow.candidateLabelIds.includes(left.id) ? 1 : 0;
+      const rightPreferred = caseRow.candidateLabelIds.includes(right.id) ? 1 : 0;
+
+      if (leftPreferred !== rightPreferred) {
+        return rightPreferred - leftPreferred;
+      }
+
+      if (left.score !== right.score) {
+        return right.score - left.score;
+      }
+
+      return left.title.localeCompare(right.title);
+    });
+
+  const filtered = query?.trim()
+    ? prioritized.filter((label) => label.score > 0)
+    : prioritized;
+
+  const signedUrls = await Promise.all(
+    filtered.map((label) => createSignedImageUrl(label.storagePath))
+  );
+
+  return {
+    caseRecord: caseRow,
+    imageUrl: await createSignedImageUrl(caseRow.uploadedImagePath),
+    labels: filtered.map((label, index) => ({
+      ...label,
+      imageUrl: signedUrls[index]
+    }))
   };
 }

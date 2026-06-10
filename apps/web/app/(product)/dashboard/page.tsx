@@ -42,6 +42,10 @@ export default async function DashboardPage() {
           <span>Seeded demo labels</span>
           <strong>{stats.demoLabels}</strong>
         </article>
+        <article className="stat-card">
+          <span>Public cases</span>
+          <strong>{stats.publicCases}</strong>
+        </article>
       </section>
 
       <section className="card-surface">
@@ -91,4 +95,3 @@ export default async function DashboardPage() {
     </section>
   );
 }
-

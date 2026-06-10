@@ -38,11 +38,14 @@ export default async function HomePage() {
           </article>
         </div>
         <div className="cta-row">
+          <Link className="primary-button" href="/report">
+            Report a label publicly
+          </Link>
+          <Link className="secondary-button" href="/case-status">
+            Check a case reference
+          </Link>
           <Link className="primary-button" href="/login">
             Sign in to the console
-          </Link>
-          <Link className="secondary-button" href="/demo-library">
-            View demo library after sign-in
           </Link>
         </div>
       </section>
@@ -76,6 +79,10 @@ export default async function HomePage() {
           </div>
         </div>
         <div className="summary-grid">
+          <article>
+            <span>Public intake</span>
+            <strong>Anonymous upload and matching</strong>
+          </article>
           <article>
             <span>Accounts</span>
             <strong>Reviewer and admin sign-in</strong>

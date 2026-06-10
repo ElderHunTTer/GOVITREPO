@@ -164,19 +164,19 @@ dt,
 .hero h1,
 .page-header h1,
 .login-card h1 {
-  letter-spacing: -0.04em;
-  line-height: 0.95;
+  letter-spacing: -0.035em;
+  line-height: 1;
 }
 
 .hero h1 {
   max-width: 12ch;
   margin-top: 18px;
-  font-size: clamp(3rem, 7vw, 5.4rem);
+  font-size: clamp(2.6rem, 5.6vw, 4.4rem);
 }
 
 .page-header h1,
 .login-card h1 {
-  font-size: clamp(2.2rem, 4vw, 3.6rem);
+  font-size: clamp(1.95rem, 3.2vw, 2.9rem);
 }
 
 .hero-copy,
@@ -252,7 +252,7 @@ dt,
 
 .stat-card strong,
 .summary-grid strong {
-  font-size: 1.6rem;
+  font-size: 1.45rem;
 }
 
 .cta-row {
@@ -287,9 +287,13 @@ dt,
   gap: 20px;
 }
 
+.page-header > div:first-child {
+  max-width: 46rem;
+}
+
 .page-subtitle,
 .panel-copy {
-  max-width: 50rem;
+  max-width: 42rem;
   margin-top: 10px;
 }
 
@@ -484,9 +488,17 @@ dt,
   color: var(--blue-strong);
 }
 
+.demo-body h2,
+.section-head h2,
+.landing-card h2 {
+  font-size: clamp(1.3rem, 2vw, 1.7rem);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
 .result-card h3 {
   margin-top: 6px;
-  font-size: 1.14rem;
+  font-size: 1.06rem;
 }
 
 .result-grid {
@@ -627,6 +639,11 @@ dd {
   }
 
   .hero h1 {
-    font-size: clamp(2.5rem, 12vw, 4rem);
+    font-size: clamp(2.3rem, 10vw, 3.4rem);
+  }
+
+  .page-header h1,
+  .login-card h1 {
+    font-size: clamp(1.75rem, 7vw, 2.2rem);
   }
 }

@@ -1,7 +1,12 @@
 export type VerificationStatus = "pass" | "review" | "fail";
 export type ReviewerRole = "admin" | "reviewer";
 export type ReviewerStatus = "active" | "disabled";
-export type ReviewSourceKind = "upload" | "demo";
+export type ReviewSourceKind = "upload" | "demo" | "public_report";
+export type PublicCaseStatus =
+  | "awaiting_label_match"
+  | "submitted_for_review"
+  | "in_review"
+  | "resolved";
 
 export interface VerificationFieldResult {
   fieldName: string;
@@ -42,4 +47,18 @@ export interface DemoLabel {
   storagePath: string;
   submittedFields: Record<string, string>;
   sampleFieldResults: VerificationFieldResult[];
+}
+
+export interface PublicReportCase {
+  id: string;
+  caseReference: string;
+  status: PublicCaseStatus;
+  reportedLabelName: string;
+  reportedCategory: string;
+  uploadedImagePath: string;
+  matchedDemoLabelId: string | null;
+  candidateLabelIds: string[];
+  internalJobId: string | null;
+  createdAt: string;
+  submittedAt: string | null;
 }
