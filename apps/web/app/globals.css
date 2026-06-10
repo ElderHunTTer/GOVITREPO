@@ -164,19 +164,19 @@ dt,
 .hero h1,
 .page-header h1,
 .login-card h1 {
-  letter-spacing: -0.035em;
-  line-height: 1;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
 }
 
 .hero h1 {
-  max-width: 12ch;
+  max-width: 13ch;
   margin-top: 18px;
-  font-size: clamp(2.6rem, 5.6vw, 4.4rem);
+  font-size: clamp(2.15rem, 4.6vw, 3.6rem);
 }
 
 .page-header h1,
 .login-card h1 {
-  font-size: clamp(1.95rem, 3.2vw, 2.9rem);
+  font-size: clamp(1.65rem, 2.6vw, 2.35rem);
 }
 
 .hero-copy,
@@ -193,7 +193,7 @@ dt,
 .hero-copy {
   max-width: 44rem;
   margin-top: 20px;
-  font-size: 1.08rem;
+  font-size: 1rem;
 }
 
 .hero-metrics,
@@ -406,11 +406,31 @@ dt,
 }
 
 .queue-item {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 16px;
   padding: 18px;
   background: rgba(255, 255, 255, 0.76);
+}
+
+.queue-item-shell {
+  align-items: stretch;
+}
+
+.queue-item-main {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.queue-item-side {
+  display: grid;
+  align-content: space-between;
+  justify-items: end;
+  gap: 14px;
+  min-width: 150px;
 }
 
 .demo-grid {
@@ -427,6 +447,48 @@ dt,
   width: 100%;
   border-radius: 20px;
   background: #f6f9ff;
+}
+
+.image-preview-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.image-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.image-preview-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.image-preview-frame {
+  position: relative;
+  overflow: hidden;
+  min-height: 420px;
+  padding: 24px;
+  border: 1px solid var(--panel-stroke);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 255, 0.96));
+}
+
+.image-preview-asset {
+  position: relative;
+  width: 100%;
+  height: 372px;
+  transform-origin: center center;
+  transition: transform 140ms ease;
+}
+
+.image-preview-asset img {
+  object-fit: contain;
 }
 
 .demo-image {
@@ -549,6 +611,13 @@ dd {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.filter-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(180px, 1fr)) auto;
+  gap: 16px;
+  align-items: end;
+}
+
 .input-group {
   display: grid;
   gap: 8px;
@@ -564,7 +633,8 @@ dd {
 }
 
 .input-group input,
-.input-group textarea {
+.input-group textarea,
+.input-group select {
   width: 100%;
   padding: 14px 16px;
   border: 1px solid rgba(19, 63, 122, 0.14);
@@ -607,6 +677,15 @@ dd {
 .helper-text {
   max-width: 36rem;
   font-size: 0.95rem;
+}
+
+.filter-actions {
+  justify-content: flex-start;
+}
+
+.danger-button {
+  border-color: rgba(179, 32, 46, 0.18);
+  color: var(--fail);
 }
 
 .processing-overlay {
@@ -706,8 +785,24 @@ dd {
     grid-template-columns: 1fr;
   }
 
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
   .input-group-full {
     grid-column: auto;
+  }
+
+  .queue-item,
+  .queue-item-main,
+  .queue-item-side,
+  .image-preview-toolbar {
+    display: grid;
+  }
+
+  .queue-item-side {
+    justify-items: start;
+    min-width: 0;
   }
 }
 
@@ -725,11 +820,11 @@ dd {
   }
 
   .hero h1 {
-    font-size: clamp(2.3rem, 10vw, 3.4rem);
+    font-size: clamp(1.95rem, 8.5vw, 2.8rem);
   }
 
   .page-header h1,
   .login-card h1 {
-    font-size: clamp(1.75rem, 7vw, 2.2rem);
+    font-size: clamp(1.5rem, 6vw, 1.95rem);
   }
 }

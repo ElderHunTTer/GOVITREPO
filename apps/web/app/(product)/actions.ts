@@ -173,6 +173,12 @@ export async function submitReviewerDecisionAction(formData: FormData) {
 
   const nextStatus = decision === "second_opinion" ? "processing" : "completed";
   const nextCaseStatus = decision === "second_opinion" ? "in_review" : "resolved";
+  const nextSummaryStatus =
+    decision === "accepted"
+      ? "pass"
+      : decision === "denied"
+        ? "fail"
+        : "review";
 
   const combinedReviewerNotes = [
     job?.reviewer_notes?.trim(),
@@ -185,10 +191,12 @@ export async function submitReviewerDecisionAction(formData: FormData) {
     .from("label_review_jobs")
     .update({
       status: nextStatus,
+      summary_status: nextSummaryStatus,
       review_decision: decision,
       reviewed_by: context.profile.id,
       reviewed_at: new Date().toISOString(),
-      reviewer_notes: combinedReviewerNotes || null
+      reviewer_notes: combinedReviewerNotes || null,
+      completed_at: decision === "second_opinion" ? null : new Date().toISOString()
     })
     .eq("id", jobId);
 
@@ -205,5 +213,47 @@ export async function submitReviewerDecisionAction(formData: FormData) {
 
   revalidatePath("/dashboard");
   revalidatePath("/case-status");
+  revalidatePath(`/reviews/${jobId}`);
   redirect(`/reviews/${jobId}`);
+}
+
+export async function deleteReviewJobAction(formData: FormData) {
+  const context = await getReviewerContext();
+
+  if (!context) {
+    redirect("/login");
+  }
+
+  const jobId = String(formData.get("jobId") ?? "");
+
+  if (!jobId) {
+    redirect("/dashboard");
+  }
+
+  const admin = createAdminClient();
+  const { data: job } = await admin
+    .from("label_review_jobs")
+    .select("public_case_reference, source_image_path")
+    .eq("id", jobId)
+    .maybeSingle<{ public_case_reference: string | null; source_image_path: string | null }>();
+
+  await admin.from("label_review_field_results").delete().eq("job_id", jobId);
+  await admin.from("label_review_jobs").delete().eq("id", jobId);
+
+  if (job?.public_case_reference) {
+    await admin
+      .from("public_report_cases")
+      .delete()
+      .eq("case_reference", job.public_case_reference);
+  }
+
+  if (job?.source_image_path) {
+    await admin.storage
+      .from(env.supabaseStorageBucketLabels)
+      .remove([job.source_image_path]);
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/case-status");
+  redirect("/dashboard");
 }

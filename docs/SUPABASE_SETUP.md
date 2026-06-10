@@ -23,8 +23,7 @@ Copy [\.env.example](/c:/Users/l7eIV/GOVITREPO/.env.example) into a local `.env.
 - `SUPABASE_STORAGE_BUCKET_LABELS`
 - `GEMINI_API_KEY`
 - `GEMINI_VISION_MODEL`
-- `PADDLEOCR_PYTHON_PATH`
-- `PADDLEOCR_BRIDGE_PATH`
+- `INTAKE_DEBUG`
 
 Notes:
 
@@ -33,16 +32,7 @@ Notes:
 - Never expose either server-only key in client-side code.
 - `GEMINI_API_KEY` enables hosted image understanding that works on Vercel.
 - `GEMINI_VISION_MODEL` defaults to `gemini-3.5-flash`.
-- `PADDLEOCR_PYTHON_PATH` defaults to `py` on Windows and `python3` elsewhere.
-- `PADDLEOCR_BRIDGE_PATH` defaults to `scripts/paddle_ocr_bridge.py`.
-- PaddleOCR requires a local Python install plus `paddlepaddle` and `paddleocr`.
-
-Recommended local install:
-
-```bash
-python -m pip install "numpy<2" --upgrade
-python -m pip install paddlepaddle==3.0.0 paddleocr
-```
+- `INTAKE_DEBUG=true` enables more verbose server-side intake logs during debugging.
 
 ## Repository Wiring
 
@@ -78,11 +68,10 @@ Add the same environment variables to the Vercel project for:
 1. Public user uploads a label image.
 2. The image is stored in Supabase Storage.
 3. A `public_report_cases` row is created with a case reference.
-4. Gemini vision is used first to classify the image and extract candidate fields.
-5. If Gemini is unavailable, the app falls back to local PaddleOCR.
-6. If confidence is high that it is not a label, the case is auto-rejected.
-7. Otherwise a `label_review_jobs` row is created for reviewer action.
-8. Reviewers can accept, deny, or request a second opinion.
+4. Gemini vision is used to classify the image and extract candidate fields.
+5. If confidence is high that it is not a label, the case is auto-rejected.
+6. Otherwise a `label_review_jobs` row is created for reviewer action.
+7. Reviewers can accept, deny, or request a second opinion.
 
 ## Auth For Testing
 

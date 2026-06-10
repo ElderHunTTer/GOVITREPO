@@ -33,12 +33,6 @@ export const env = {
   },
   get intakeDebugEnabled() {
     return process.env.INTAKE_DEBUG === "1" || process.env.INTAKE_DEBUG === "true";
-  },
-  get paddleOcrPythonPath() {
-    return process.env.PADDLEOCR_PYTHON_PATH ?? (process.platform === "win32" ? "py" : "python3");
-  },
-  get paddleOcrBridgePath() {
-    return process.env.PADDLEOCR_BRIDGE_PATH ?? "scripts/paddle_ocr_bridge.py";
   }
 };
 

@@ -32,6 +32,12 @@ type JobRow = {
   created_at: string;
 };
 
+type DashboardFilters = {
+  query?: string;
+  sourceKind?: "all" | ReviewSourceKind;
+  status?: "all" | "pending" | "processing" | "completed" | VerificationStatus;
+};
+
 type FieldResultRow = {
   field_name: string;
   status: VerificationStatus;
@@ -165,7 +171,7 @@ export async function createSignedImageUrl(path: string | null) {
   return data?.signedUrl ?? null;
 }
 
-export async function getDashboardData() {
+export async function getDashboardData(filters?: DashboardFilters) {
   await requireReviewer();
   const admin = createAdminClient();
 
@@ -190,10 +196,55 @@ export async function getDashboardData() {
     admin.from("public_report_cases").select("id", { count: "exact", head: true }),
     admin
       .from("label_review_jobs")
-      .select("id, status, summary_status, label_title, source_kind, created_at")
+      .select(
+        "id, status, summary_status, label_title, source_kind, created_at, review_decision, public_case_reference"
+      )
       .order("created_at", { ascending: false })
-      .limit(6)
+      .limit(50)
   ]);
+
+  const normalizedQuery = filters?.query?.trim().toLowerCase() ?? "";
+  const filteredJobs =
+    recentJobsResponse.data?.filter((job: {
+      id: string;
+      status: string;
+      summary_status: VerificationStatus | null;
+      label_title: string | null;
+      source_kind: ReviewSourceKind;
+      created_at: string;
+      review_decision: ReviewDecision | null;
+      public_case_reference: string | null;
+    }) => {
+      if (filters?.sourceKind && filters.sourceKind !== "all" && job.source_kind !== filters.sourceKind) {
+        return false;
+      }
+
+      if (filters?.status && filters.status !== "all") {
+        const displayStatus = job.review_decision ?? job.summary_status ?? job.status;
+        if (displayStatus !== filters.status) {
+          return false;
+        }
+      }
+
+      if (normalizedQuery) {
+        const haystack = [
+          job.label_title ?? "",
+          job.source_kind,
+          job.status,
+          job.summary_status ?? "",
+          job.review_decision ?? "",
+          job.public_case_reference ?? ""
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        if (!haystack.includes(normalizedQuery)) {
+          return false;
+        }
+      }
+
+      return true;
+    }) ?? [];
 
   return {
     stats: {
@@ -204,21 +255,25 @@ export async function getDashboardData() {
       publicCases: publicCases.count ?? 0
     },
     recentJobs:
-      recentJobsResponse.data?.map((job: {
+      filteredJobs.map((job: {
         id: string;
         status: string;
         summary_status: VerificationStatus | null;
         label_title: string | null;
         source_kind: ReviewSourceKind;
         created_at: string;
+        review_decision: ReviewDecision | null;
+        public_case_reference: string | null;
       }) => ({
         id: job.id,
         status: job.status,
         summaryStatus: job.summary_status,
+        reviewDecision: job.review_decision,
         labelTitle: job.label_title ?? "Untitled label",
         sourceKind: job.source_kind,
+        publicCaseReference: job.public_case_reference,
         createdAt: job.created_at
-      })) ?? []
+      }))
   };
 }
 

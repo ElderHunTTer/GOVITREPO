@@ -29,7 +29,7 @@ The product should optimize for:
 - `Postgres` for jobs, audit records, and verification results
 - blob/object storage for uploaded images
 - a deterministic verification engine, with OCR isolated behind a replaceable adapter
-- hosted `Gemini` vision as the primary intake analyzer, with local `PaddleOCR` fallback
+- hosted `Gemini` vision as the intake analyzer
 
 ## Suggested Initial Repository Layout
 

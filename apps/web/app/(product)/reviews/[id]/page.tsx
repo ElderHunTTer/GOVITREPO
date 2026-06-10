@@ -1,10 +1,18 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
+import { ImagePreview } from "@/app/components/image-preview";
 import { getJobDetail } from "@/lib/product";
 import { submitReviewerDecisionAction } from "../../actions";
 
 function formatLabel(value: string) {
   return value.replace(/_/g, " ");
+}
+
+function getDisplayStatus(args: {
+  reviewDecision: string | null;
+  summaryStatus: string | null;
+  status: string;
+}) {
+  return args.reviewDecision ?? args.summaryStatus ?? args.status;
 }
 
 export default async function ReviewDetailPage({
@@ -20,6 +28,11 @@ export default async function ReviewDetailPage({
   }
 
   const { job, imageUrl, fieldResults } = detail;
+  const displayStatus = getDisplayStatus({
+    reviewDecision: job.reviewDecision,
+    summaryStatus: job.summaryStatus,
+    status: job.status
+  });
 
   return (
     <section className="page-stack">
@@ -31,8 +44,8 @@ export default async function ReviewDetailPage({
             Source: {job.sourceKind} · Created {new Date(job.createdAt).toLocaleString()}
           </p>
         </div>
-        <span className={`status-pill status-${job.summaryStatus ?? "review"}`}>
-          {job.summaryStatus ?? job.status}
+        <span className={`status-pill status-${displayStatus}`}>
+          {formatLabel(displayStatus)}
         </span>
       </header>
 
@@ -45,14 +58,7 @@ export default async function ReviewDetailPage({
             </div>
           </div>
           {imageUrl ? (
-            <Image
-              alt={job.labelTitle}
-              className="detail-image"
-              height={1200}
-              src={imageUrl}
-              unoptimized
-              width={900}
-            />
+            <ImagePreview alt={job.labelTitle} src={imageUrl} />
           ) : (
             <div className="empty-state">
               <h3>No stored preview</h3>

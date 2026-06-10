@@ -1,8 +1,37 @@
 import Link from "next/link";
+import { deleteReviewJobAction } from "../actions";
 import { getDashboardData } from "@/lib/product";
 
-export default async function DashboardPage() {
-  const { stats, recentJobs } = await getDashboardData();
+function formatLabel(value: string) {
+  return value.replace(/_/g, " ");
+}
+
+export default async function DashboardPage({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const status = resolvedSearchParams.status;
+  const source = resolvedSearchParams.source;
+  const q = resolvedSearchParams.q;
+  const filters = {
+    status: (Array.isArray(status) ? status[0] : status ?? "all") as
+      | "all"
+      | "pending"
+      | "processing"
+      | "completed"
+      | "pass"
+      | "review"
+      | "fail",
+    sourceKind: (Array.isArray(source) ? source[0] : source ?? "all") as
+      | "all"
+      | "upload"
+      | "demo"
+      | "public_report",
+    query: Array.isArray(q) ? q[0] : q ?? ""
+  };
+  const { stats, recentJobs } = await getDashboardData(filters);
 
   return (
     <section className="page-stack">
@@ -49,46 +78,99 @@ export default async function DashboardPage() {
         </article>
       </section>
 
-      <section className="card-surface">
+      <section className="card-surface page-stack">
         <div className="section-head">
           <div>
-            <p className="eyebrow">Recent activity</p>
-            <h2>Latest review jobs</h2>
+            <p className="eyebrow">Review list</p>
+            <h2>Filter and manage submitted reports</h2>
           </div>
           <Link className="text-link" href="/reviews/new">
             Intake another label
           </Link>
         </div>
 
+        <form className="filter-grid" method="get">
+          <label className="input-group">
+            <span>Search</span>
+            <input defaultValue={filters.query} name="q" placeholder="Label, case reference, status" type="text" />
+          </label>
+          <label className="input-group">
+            <span>Status</span>
+            <select defaultValue={filters.status} name="status">
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="completed">Completed</option>
+              <option value="pass">Pass</option>
+              <option value="review">Review</option>
+              <option value="fail">Fail</option>
+            </select>
+          </label>
+          <label className="input-group">
+            <span>Source</span>
+            <select defaultValue={filters.sourceKind} name="source">
+              <option value="all">All sources</option>
+              <option value="public_report">Public report</option>
+              <option value="upload">Internal upload</option>
+              <option value="demo">Demo</option>
+            </select>
+          </label>
+          <div className="actions-row filter-actions">
+            <button className="primary-button" type="submit">
+              Apply filters
+            </button>
+            <Link className="secondary-button" href="/dashboard">
+              Clear
+            </Link>
+          </div>
+        </form>
+
         {recentJobs.length === 0 ? (
           <div className="empty-state">
-            <h3>No reviews yet</h3>
+            <h3>No matching reports</h3>
             <p>
-              Run a seeded demo or upload a label to create the first review job.
+              Adjust the filters, run a seeded demo, or upload a label to create
+              a new review job.
             </p>
           </div>
         ) : (
           <div className="queue-list">
             {recentJobs.map((job) => (
-              <Link key={job.id} className="queue-item" href={`/reviews/${job.id}`}>
-                <div>
-                  <span className="field-label">Label</span>
-                  <strong>{job.labelTitle}</strong>
-                </div>
-                <div>
-                  <span className="field-label">Source</span>
-                  <strong>{job.sourceKind}</strong>
-                </div>
-                <div>
-                  <span className="field-label">Created</span>
-                  <strong>{new Date(job.createdAt).toLocaleString()}</strong>
-                </div>
-                <div>
-                  <span className={`status-pill status-${job.summaryStatus ?? "review"}`}>
-                    {job.summaryStatus ?? job.status}
+              <article key={job.id} className="queue-item queue-item-shell">
+                <Link className="queue-item-main" href={`/reviews/${job.id}`}>
+                  <div>
+                    <span className="field-label">Label</span>
+                    <strong>{job.labelTitle}</strong>
+                  </div>
+                  <div>
+                    <span className="field-label">Source</span>
+                    <strong>{formatLabel(job.sourceKind)}</strong>
+                  </div>
+                  <div>
+                    <span className="field-label">Created</span>
+                    <strong>{new Date(job.createdAt).toLocaleString()}</strong>
+                  </div>
+                  <div>
+                    <span className="field-label">Case reference</span>
+                    <strong>{job.publicCaseReference ?? "Internal only"}</strong>
+                  </div>
+                </Link>
+                <div className="queue-item-side">
+                  <span
+                    className={`status-pill status-${
+                      job.reviewDecision ?? job.summaryStatus ?? job.status
+                    }`}
+                  >
+                    {formatLabel(job.reviewDecision ?? job.summaryStatus ?? job.status)}
                   </span>
+                  <form action={deleteReviewJobAction}>
+                    <input name="jobId" type="hidden" value={job.id} />
+                    <button className="secondary-button compact-button danger-button" type="submit">
+                      Delete
+                    </button>
+                  </form>
                 </div>
-              </Link>
+              </article>
             ))}
           </div>
         )}

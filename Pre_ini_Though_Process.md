@@ -26,4 +26,12 @@ This will be my casual thoughts process - Non Professional Persay....
     Just a simple checkmark should do the trick.
 
     sorry, gonna stick to paddleOCR/python as I dont got the budget to sub to openai. its okay ill make it work.
+    Paddleocr was not gonna works ince it requires a server and I dont want to overcomplicate things so im jsut gonna use my googleAI API to OCR the images.
+
+    Images Valdiated Succesfully.
+
+    Now, lets make sure all the tools are working properly.
+
+    Lets beautify it aswell some passas here and there...
+
 

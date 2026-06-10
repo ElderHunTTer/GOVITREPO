@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ImagePreview } from "@/app/components/image-preview";
 import { getPublicCaseDetail } from "@/lib/product";
 
 export const dynamic = "force-dynamic";
@@ -111,6 +112,21 @@ export default async function CaseStatusPage({
                 </strong>
               </article>
             </div>
+
+            {caseDetail.imageUrl ? (
+              <section className="page-stack">
+                <div className="section-head">
+                  <div>
+                    <p className="eyebrow">Uploaded evidence</p>
+                    <h2>Label preview</h2>
+                  </div>
+                </div>
+                <ImagePreview
+                  alt={`Uploaded label for ${caseDetail.caseRecord.caseReference}`}
+                  src={caseDetail.imageUrl}
+                />
+              </section>
+            ) : null}
 
             {caseDetail.caseRecord.aiSummary ? (
               <div className="note-block">
