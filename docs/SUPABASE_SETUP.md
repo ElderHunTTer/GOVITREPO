@@ -62,3 +62,24 @@ Once env vars are present, the next implementation step is:
 - job creation in `label_review_jobs`
 - storage upload into `label-review-images`
 - result page backed by real Supabase records
+
+## Auth For Testing
+
+This project now uses simple Supabase Auth for internal reviewer access.
+
+Recommended test setup:
+
+1. In Supabase Auth settings, disable email confirmation for local testing if you want immediate email/password sign-in.
+2. Create users directly in Supabase Auth.
+3. Each new auth user will automatically get a `reviewer_profiles` row with default role `reviewer`.
+4. Promote a user to admin by updating `reviewer_profiles.role` to `admin`.
+
+Example SQL:
+
+```sql
+update public.reviewer_profiles
+set role = 'admin'
+where email = 'your-admin@example.com';
+```
+
+Only users with an active `reviewer_profiles` record should use the app.

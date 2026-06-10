@@ -1,136 +1,97 @@
-import { summarizeVerification } from "@govit/core";
-import type { VerificationResult } from "@govit/types";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getReviewerContext } from "@/lib/product";
 
-const mockResult: VerificationResult = {
-  jobId: "demo-job-001",
-  status: "review",
-  createdAt: new Date("2026-06-09T10:00:00.000Z").toISOString(),
-  fields: [
-    {
-      fieldName: "governmentWarning",
-      status: "pass",
-      expectedValue:
-        "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems.",
-      detectedValue:
-        "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems.",
-      confidence: 0.99,
-      reason: "Detected warning text matches the required statement exactly."
-    },
-    {
-      fieldName: "brandName",
-      status: "review",
-      expectedValue: "STONE'S THROW",
-      detectedValue: "Stone's Throw",
-      confidence: 0.91,
-      reason:
-        "Normalized values match, but the reviewer should confirm branding presentation on the label."
-    },
-    {
-      fieldName: "netContents",
-      status: "fail",
-      expectedValue: "750 mL",
-      detectedValue: "700 mL",
-      confidence: 0.95,
-      reason: "Structured quantity does not match the submitted application value."
-    }
-  ]
-};
+export const dynamic = "force-dynamic";
 
-const summary = summarizeVerification(mockResult);
+export default async function HomePage() {
+  const context = await getReviewerContext();
 
-export default function HomePage() {
+  if (context) {
+    redirect("/dashboard");
+  }
+
   return (
     <main className="page-shell">
       <section className="hero">
         <div className="hero-band">
-          <p className="eyebrow">Modern review operations</p>
-          <span className="hero-chip">Supabase and Vercel connected</span>
+          <p className="eyebrow">Digital label operations</p>
+          <span className="hero-chip">Supabase auth, storage, and review queue</span>
         </div>
-        <h1>American-made label review built for speed, clarity, and trust.</h1>
+        <h1>Label review software designed like a real internal product.</h1>
         <p className="hero-copy">
-          This showcase frames the reviewer workflow as a modern verification
-          console: deterministic checks, visible evidence, and a path from demo
-          polish to production-grade intake.
+          A reviewer and admin console for ingesting label images, running seeded
+          demo evaluations, and storing every artifact and decision in Supabase.
         </p>
         <div className="hero-metrics">
           <article>
-            <span>Verification mode</span>
-            <strong>Single-label review</strong>
+            <span>Primary workflow</span>
+            <strong>Intake, queue, and review</strong>
           </article>
           <article>
-            <span>Backed by</span>
-            <strong>Supabase + Vercel</strong>
+            <span>Authentication</span>
+            <strong>Reviewer and admin accounts</strong>
           </article>
           <article>
-            <span>Decision model</span>
-            <strong>Pass / Review / Fail</strong>
+            <span>Storage model</span>
+            <strong>Images and demos in Supabase</strong>
           </article>
+        </div>
+        <div className="cta-row">
+          <Link className="primary-button" href="/login">
+            Sign in to the console
+          </Link>
+          <Link className="secondary-button" href="/demo-library">
+            View demo library after sign-in
+          </Link>
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">Mock verification result</p>
-            <h2>Single-label review</h2>
-            <p className="panel-copy">
-              Reviewers can see the exact field outcome, the detected value, and
-              why a record should pass, pause for review, or fail.
-            </p>
-          </div>
-          <span className={`status-pill status-${mockResult.status}`}>
-            {summary.label}
-          </span>
-        </div>
+      <section className="card-surface landing-grid">
+        <article className="landing-card">
+          <p className="eyebrow">What the product does</p>
+          <h2>Product-shaped workflow</h2>
+          <p className="panel-copy">
+            Instead of a single pretty result card, the product now has a reviewer
+            login, dashboard, upload intake, demo library, and individual review
+            pages for stored records.
+          </p>
+        </article>
+        <article className="landing-card">
+          <p className="eyebrow">Demo strategy</p>
+          <h2>Stable seeded showcase data</h2>
+          <p className="panel-copy">
+            Demo labels are seeded into Supabase and their images are stored in the
+            same project, so product demos stay fast and deterministic without
+            depending on live TTB retrieval.
+          </p>
+        </article>
+      </section>
 
+      <section className="card-surface">
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">Core capabilities</p>
+            <h2>Built to feel like an internal operations platform.</h2>
+          </div>
+        </div>
         <div className="summary-grid">
           <article>
-            <span>Job ID</span>
-            <strong>{mockResult.jobId}</strong>
+            <span>Accounts</span>
+            <strong>Reviewer and admin sign-in</strong>
           </article>
           <article>
-            <span>Pass</span>
-            <strong>{summary.counts.pass}</strong>
+            <span>Uploads</span>
+            <strong>Label images stored in Supabase</strong>
           </article>
           <article>
-            <span>Review</span>
-            <strong>{summary.counts.review}</strong>
+            <span>Demo data</span>
+            <strong>Seeded labels with saved previews</strong>
           </article>
           <article>
-            <span>Fail</span>
-            <strong>{summary.counts.fail}</strong>
+            <span>Review model</span>
+            <strong>Pass / Review / Fail outcomes</strong>
           </article>
-        </div>
-
-        <div className="result-list">
-          {mockResult.fields.map((field) => (
-            <article key={field.fieldName} className="result-card">
-              <div className="result-head">
-                <div>
-                  <span className="field-label">Field</span>
-                  <h3>{field.fieldName}</h3>
-                </div>
-                <span className={`status-pill status-${field.status}`}>
-                  {field.status}
-                </span>
-              </div>
-              <p>{field.reason}</p>
-              <dl className="result-grid">
-                <div>
-                  <dt>Expected</dt>
-                  <dd>{field.expectedValue}</dd>
-                </div>
-                <div>
-                  <dt>Detected</dt>
-                  <dd>{field.detectedValue}</dd>
-                </div>
-                <div>
-                  <dt>Confidence</dt>
-                  <dd>{Math.round(field.confidence * 100)}%</dd>
-                </div>
-              </dl>
-            </article>
-          ))}
         </div>
       </section>
     </main>
